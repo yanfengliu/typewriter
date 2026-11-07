@@ -110,6 +110,7 @@ export function createTutorial(stage: HTMLElement, scene: SceneAPI | undefined, 
   for (const button of dialog.querySelectorAll<HTMLButtonElement>('[data-lesson]')) on(button, 'click', () => choose(Number(button.dataset.lesson)));
   on(dialog, 'keydown', event => {
     const key = event as KeyboardEvent;
+    if (!(key.target instanceof Element) || key.target.closest('dialog') !== dialog) return;
     if (key.target instanceof HTMLInputElement || key.ctrlKey || key.metaKey || key.altKey) return;
     if (key.key === 'ArrowRight') { key.preventDefault(); choose(index + 1); }
     if (key.key === 'ArrowLeft') { key.preventDefault(); choose(index - 1); }

@@ -101,7 +101,7 @@ function gesture(): void { void audio.unlock(); }
 function restoreShift(): void { machine.setShift(shiftHeld || capsLock || pointerShiftLatched || !!pointerShiftInFlight); }
 
 function clickKey(key: string, down: boolean): void {
-  if (tutorial?.active) return;
+  if (tutorial?.active && down) return;
   if (down) {
     gesture(); stage.focus({ preventScroll: true });
     if (key === 'Shift') {
@@ -140,7 +140,7 @@ catch {
 
 tutorial = createTutorial(stage, scene, {
   onOpen() { releaseAll(); saveNow(); paperView.hidden = true; },
-  onClose() { scene?.setCutaway(cutaway); setView(view); },
+  onClose() { paperView.hidden = view !== 'paper'; if (view === 'paper') updatePaperZoom(); },
   onSources() { showDialog('how-dialog'); },
 });
 // Keep the supporting modal inside its parent tour so native modal focus and
