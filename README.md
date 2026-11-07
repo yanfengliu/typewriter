@@ -15,6 +15,12 @@ npm run dev
 
 Open the local address printed by Vite. `npm run build` checks TypeScript and creates a production build in `dist`; `npm run preview` serves it locally. `npm test` runs the deterministic mechanical behavior tests. The app needs WebGL 2 and uses no remote fonts, models, audio files, or runtime services.
 
+## GitHub Pages
+
+The public site is [Atelier on GitHub Pages](https://yanfengliu.github.io/typewriter/). The [publication workflow](.github/workflows/pages.yml) tests and builds the app on Node.js 24, then deploys `dist` when app or workflow changes reach `main`. Documentation-only commits skip publication; a manual run is also available in GitHub Actions.
+
+`npm run build:pages` produces the same deployment build with asset URLs under `/typewriter/`. The regular development and build commands keep their default root path. Pages uses the GitHub Actions source in repository settings. No runtime server or credentials are included in the published bundle.
+
 ## Controls
 
 | Input | Action |
