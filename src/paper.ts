@@ -31,6 +31,7 @@ export class PaperStore {
   private readonly context: CanvasRenderingContext2D;
   private readonly blank: HTMLCanvasElement;
   private pendingWarning = '';
+  private expectedStoredRaw: string | null = null;
 
   constructor() {
     this.canvas.width = PAPER_WIDTH;
@@ -47,6 +48,7 @@ export class PaperStore {
   private restore(): void {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      this.expectedStoredRaw = raw;
       if (!raw) return;
       const session: unknown = JSON.parse(raw);
       const s = session as Session;
@@ -70,7 +72,16 @@ export class PaperStore {
     this.position = { ...position };
     if (this.storageBlocked) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, current: this.current, archive: this.archive, position: this.position } satisfies Session));
+      // A stale tab must not replace another tab's newer sheet or archive.
+      // This is optimistic conflict detection, not an atomic storage lock.
+      if (localStorage.getItem(STORAGE_KEY) !== this.expectedStoredRaw) {
+        this.storageBlocked = true;
+        this.onWarning('Another tab changed the saved sheets. Saving in this tab has stopped to protect them. Your marks are still here; download every page in this tab before reloading.');
+        return;
+      }
+      const raw = JSON.stringify({ version: 1, current: this.current, archive: this.archive, position: this.position } satisfies Session);
+      localStorage.setItem(STORAGE_KEY, raw);
+      this.expectedStoredRaw = raw;
     } catch {
       this.onWarning('Browser storage is full or unavailable. Every page is still in this tab; download your pages before leaving.');
     }

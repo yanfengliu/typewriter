@@ -4,7 +4,7 @@ import { TypewriterMachine } from './mechanics';
 import { createStudio } from './scene';
 import { PaperStore } from './paper';
 import { TypewriterAudio } from './audio';
-import { COLUMNS, PAPER_WIDTH, SHIFT_MAP, type SceneAPI, type ViewMode, type Sheet } from './contracts';
+import { baseKey, COLUMNS, PAPER_WIDTH, SHIFT_MAP, type SceneAPI, type ViewMode, type Sheet } from './contracts';
 
 const icons = {
   sound: '<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -70,6 +70,8 @@ let cutaway = false;
 let speed = 1;
 let shiftHeld = false;
 let capsLock = false;
+let pointerShiftLatched = false;
+let pointerShiftInFlight: string | undefined;
 let lastStatus = '';
 let statusUntil = 0;
 let persistTimer: number | undefined;
@@ -94,16 +96,36 @@ function message(text: string, duration = 3200): void {
 function saveNow(): void { window.clearTimeout(persistTimer); paper.save({ column: machine.state.column, line: machine.state.line }); }
 function saveSoon(): void { window.clearTimeout(persistTimer); persistTimer = window.setTimeout(saveNow, 350); }
 function gesture(): void { void audio.unlock(); }
+function restoreShift(): void { machine.setShift(shiftHeld || capsLock || pointerShiftLatched || !!pointerShiftInFlight); }
 
 function clickKey(key: string, down: boolean): void {
   if (down) {
     gesture(); stage.focus({ preventScroll: true });
-    if (key === 'Shift') { shiftHeld = true; machine.setShift(true); return; }
-    if (key.length === 1 && machine.state.shifted) key = shiftedFaces[key] ?? key.toUpperCase();
+    if (key === 'Shift') {
+      pointerShiftLatched = !pointerShiftLatched;
+      restoreShift();
+      message(pointerShiftLatched ? 'Shift is ready for the next clicked key. Click Shift again to release it.' : 'Shift released.', 3000);
+      return;
+    }
+    if (key.length === 1 && key !== ' ') {
+      const shifted = pointerShiftLatched || shiftHeld || capsLock;
+      if (pointerShiftLatched) {
+        pointerShiftInFlight = baseKey(key);
+        pointerShiftLatched = false;
+      }
+      machine.setShift(shifted);
+      if (shifted) key = shiftedFaces[key] ?? key.toUpperCase();
+    }
     machine.press(key);
   } else {
-    if (key === 'Shift') { shiftHeld = false; machine.setShift(capsLock); return; }
+    // Pointer clicks cannot hold one key while selecting another. Keep Shift
+    // latched across the scene's automatic 100 ms key release.
+    if (key === 'Shift') return;
     machine.release(key);
+    if (pointerShiftInFlight === baseKey(key) && !machine.state.bars.some(bar => bar.key === pointerShiftInFlight && bar.angle > .015)) {
+      pointerShiftInFlight = undefined;
+      restoreShift();
+    }
   }
 }
 
@@ -115,6 +137,10 @@ catch {
 
 machine.onEvent = event => {
   if (event.type === 'impression') {
+    if (pointerShiftInFlight === baseKey(event.impression.char)) {
+      pointerShiftInFlight = undefined;
+      restoreShift();
+    }
     paper.append(event.impression); scene?.markPaperDirty(); saveSoon();
     get('paper-view-count').textContent = `${paper.current.impressions.length} impressions · Ivory stock`;
     message('Ink on paper. A little more permanent.', 1300);
@@ -192,7 +218,7 @@ listen(get('new-sheet'), 'click', () => {
   get('new-sheet').blur();
 });
 for (const id of ['download-button', 'paper-download']) listen(get(id), 'click', () => { paper.download(); get(id).blur(); });
-listen(get('clear-jam'), 'click', () => { machine.clearJam(); message('Typebars released. Find a steady rhythm.', 3000); get('clear-jam').blur(); });
+listen(get('clear-jam'), 'click', () => { releaseAll(); machine.clearJam(); message('Typebars released. Find a steady rhythm.', 3000); get('clear-jam').blur(); });
 
 function renderTray(): void {
   const list = get('tray-list'); list.replaceChildren();
@@ -217,15 +243,15 @@ listen(get('archive-download'), 'click', () => { if (archivedSelection) paper.do
 
 function releaseAll(): void {
   for (const key of heldKeys) machine.release(key);
-  heldKeys.clear(); shiftHeld = false; machine.setShift(capsLock);
+  heldKeys.clear(); shiftHeld = false; pointerShiftLatched = false; pointerShiftInFlight = undefined; machine.setShift(capsLock);
 }
 const controlsTarget = (target: EventTarget | null): boolean => target instanceof HTMLElement && !!target.closest('input, select, textarea, [contenteditable="true"]');
 const modalOpen = (): boolean => !!document.querySelector('dialog[open]');
 window.addEventListener('keydown', event => {
   if (modalOpen() || controlsTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
-  if (event.key === 'Escape') { if (machine.state.jammed) machine.clearJam(); else { releaseAll(); stage.blur(); if (view === 'paper') setView('write'); } return; }
+  if (event.key === 'Escape') { if (machine.state.jammed) { releaseAll(); machine.clearJam(); } else { releaseAll(); stage.blur(); if (view === 'paper') setView('write'); } return; }
   if (event.key === 'Shift') { shiftHeld = true; machine.setShift(true); return; }
-  if (event.key === 'CapsLock') { capsLock = event.getModifierState('CapsLock'); machine.setShift(shiftHeld || capsLock); return; }
+  if (event.key === 'CapsLock') { capsLock = event.getModifierState('CapsLock'); restoreShift(); return; }
   if (event.key === 'Tab' && document.activeElement !== stage) return;
   if ((event.key === 'Enter' || event.key === ' ') && event.target instanceof HTMLElement && event.target.closest('button,a')) return;
   const supported = event.key.length === 1 || ['Enter', 'Backspace', 'Tab', 'ArrowUp', 'ArrowDown'].includes(event.key);
@@ -238,7 +264,7 @@ window.addEventListener('keydown', event => {
   heldKeys.add(event.key); machine.press(event.key);
 }, { signal: abort.signal });
 window.addEventListener('keyup', event => {
-  if (event.key === 'Shift') { shiftHeld = false; machine.setShift(capsLock); }
+  if (event.key === 'Shift') { shiftHeld = false; restoreShift(); }
   machine.release(event.key); heldKeys.delete(event.key);
 }, { signal: abort.signal });
 window.addEventListener('blur', releaseAll, { signal: abort.signal });

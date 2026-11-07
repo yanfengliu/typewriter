@@ -22,12 +22,14 @@ Open the local address printed by Vite. `npm run build` checks TypeScript and cr
 | Space | Release the escapement one character without printing |
 | Backspace | Move back one character; existing ink remains |
 | Enter | Return the carriage and advance the platen |
-| Tab | Travel to the next eight-column stop |
+| Tab (machine focused) | Travel to the next eight-column stop |
 | Up / Down | Turn the platen backward / forward |
 | Escape / Clear jam | Release collided typebars |
 | Drag / scroll over the machine | Orbit / zoom the camera |
 
-The margin bell warns near the end of the line. The right margin locks; there is no automatic word wrap. New sheet retains the previous sheet in the local paper tray. Paper view and PNG export show all impressions, including overstrikes. Browser storage is local to the current origin; clearing it removes saved sheets, so export any pages you want to keep independently.
+The margin bell warns near the end of the line. The right margin locks; there is no automatic word wrap. Click a 3D Shift key to arm the next clicked character; click Shift again to release it. New sheet retains the previous sheet in the local paper tray. Paper view and PNG export show all impressions, including overstrikes. Browser storage is local to the current origin; clearing it removes saved sheets, so export any pages you want to keep independently.
+
+Use one writing tab at a time. A stale tab detects changes to the saved session and stops saving instead of overwriting newer sheets; its local pages remain available to export. This is optimistic conflict detection, not an atomic lock for exactly simultaneous writers.
 
 ## Mechanism and research
 
