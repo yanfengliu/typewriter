@@ -147,3 +147,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Isolated task workspaces and disposable visual verification output
+.worktrees/
+output/
+.playwright-cli/
