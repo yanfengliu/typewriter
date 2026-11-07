@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import './style.css';
-import { TypewriterMachine } from './mechanics';
+import { BufferedTypewriter } from './buffered-typewriter';
 import { createStudio } from './scene';
 import { PaperStore } from './paper';
 import { TypewriterAudio } from './audio';
@@ -53,13 +53,13 @@ app.innerHTML = `
   </main>
   <footer class="footer"><span class="footer-note">SLOW DOWN. SOMETHING IS TAKING SHAPE.</span><div class="keyboard-hints"><span><kbd>↵</kbd> Return</span><span><kbd>⌫</kbd> Backspace ≠ erase</span><span><kbd>⇧</kbd> Shift</span><span><kbd>↑ ↓</kbd> Feed paper</span></div><span class="local-note"><span></span> Stays on your device</span></footer>
   <section id="paper-view" class="paper-view" aria-label="Live paper view" hidden><div class="paper-view-header"><div><span class="eyebrow">THE ORIGINAL</span><h2>Every mark stays.</h2></div><button id="close-paper" class="icon-button" aria-label="Close paper view">${icon('close')}</button></div><div class="paper-zoom" role="group" aria-label="Paper magnification"><button id="paper-fit" aria-pressed="true">Fit</button><button id="paper-zoom-out" aria-label="Zoom paper out">−</button><output id="paper-zoom-value" aria-live="polite">Fit</output><button id="paper-zoom-in" aria-label="Zoom paper in">+</button><button id="paper-actual" aria-label="Show paper at full resolution" aria-pressed="false">100%</button><span>Scroll to read</span></div><div class="paper-canvas-wrap" id="paper-canvas-wrap"></div><div class="paper-view-footer"><span id="paper-view-count">0 impressions · Ivory stock</span><button id="paper-download" class="text-button">Download paper ${icon('download')}</button></div></section>
-  <dialog id="how-dialog" class="modal how-dialog"><div class="dialog-header"><span class="eyebrow">INSIDE THE MACHINE</span><button class="icon-button dialog-close" aria-label="Close mechanism guide">${icon('close')}</button></div><h2>A small orchestra<br>of moving parts.</h2><p class="dialog-intro">There is no cursor. The strike point stays still, and the paper comes to it.</p><ol class="mechanism-list"><li><span>01</span><div><h3>The key & the typebar</h3><p>A key lever drives its typebar toward a shared printing point. The bar has inertia; its return spring brings it back. Strike two together and they can collide.</p></div></li><li><span>02</span><div><h3>Ribbon, paper, platen</h3><p>The ribbon rises into the path of the type. Impact transfers ink onto paper backed by the rubber platen. Overtyping adds another impression.</p></div></li><li><span>03</span><div><h3>One tooth at a time</h3><p>After impact, the escapement releases the spring-pulled carriage by one character. At the right margin it stops. A bell warns you before you arrive.</p></div></li><li><span>04</span><div><h3>The return</h3><p>Enter returns the carriage and turns the platen for a new line. Backspace reverses one space without lifting ink. Arrow keys turn the platen in either direction.</p></div></li></ol><details class="model-note"><summary>About the simulation & its sources</summary><p>This is a reduced mechanical model: fixed-step angular motion, inertia, spring forces, damping, contact, and carriage stops. Values are illustrative, not measurements of a particular machine. Paper follows a constrained path around the platen; it is not a full sheet-deformation or ink-fluid simulation. Your keyboard cannot sense pressure, so strike force is adjustable.</p><p>The design combines a basket shift with full-drop escapement; it is a mechanical study, not a replica of a named model.</p><ul><li><a href="https://files.eric.ed.gov/fulltext/ED173578.pdf" target="_blank" rel="noopener noreferrer">U.S. Navy, Basic Machines — typewriter mechanisms, PDF pages 103–116 ↗</a></li><li><a href="https://site.xavier.edu/polt/typewriters/Royal1955.pdf" target="_blank" rel="noopener noreferrer">Royal service manual, 1955 — escapement, ribbon and basket shift ↗</a></li><li><a href="https://www.uspto.gov/web/patents/classification/uspc400/defs400.htm" target="_blank" rel="noopener noreferrer">USPTO Class 400 — full-drop escapement and ink transfer ↗</a></li></ul></details><p class="guide-tip"><kbd>Tab</kbd> advances to the next 8-column stop while the machine has focus. <kbd>Esc</kbd> releases focus, or frees jammed bars.</p></dialog>
-  <dialog id="settings-dialog" class="modal settings-dialog"><div class="dialog-header"><span class="eyebrow">FIND YOUR TOUCH</span><button class="icon-button dialog-close" aria-label="Close machine settings">${icon('close')}</button></div><h2>The small adjustments.</h2><label class="range-label" for="force-input">Strike force <output id="force-value">1.00×</output></label><input id="force-input" type="range" min="0.55" max="1.4" step="0.05" value="1"><div class="range-ends"><span>Light touch</span><span>Firm impression</span></div><label class="select-label" for="spacing-input">Line spacing<select id="spacing-input"><option value="1">Single · 1/6 in</option><option value="1.5">One and a half</option><option value="2">Double · 1/3 in</option></select></label><fieldset class="ribbon-field"><legend>Ribbon color</legend><label><input type="radio" name="ribbon" value="black" checked><span class="ribbon-dot black"></span> Carbon black</label><label><input type="radio" name="ribbon" value="red"><span class="ribbon-dot red"></span> Vermilion</label></fieldset><label class="select-label" for="speed-input">Mechanism speed<select id="speed-input"><option value="1">Real time · 1×</option><option value="0.25">Slow motion · ¼×</option></select></label><p class="setting-note">Slow motion makes each impact visible. Leave more time between keystrokes, just as you would with a slower mechanism.</p></dialog>
+  <dialog id="how-dialog" class="modal how-dialog"><div class="dialog-header"><span class="eyebrow">INSIDE THE MACHINE</span><button class="icon-button dialog-close" aria-label="Close mechanism guide">${icon('close')}</button></div><h2>A small orchestra<br>of moving parts.</h2><p class="dialog-intro">There is no cursor. The strike point stays still, and the paper comes to it.</p><ol class="mechanism-list"><li><span>01</span><div><h3>The key & the typebar</h3><p>A key lever drives its typebar toward a shared printing point. The bar has inertia; its return spring brings it back. Fast keystrokes wait in order so the typebars do not collide.</p></div></li><li><span>02</span><div><h3>Ribbon, paper, platen</h3><p>The ribbon rises into the path of the type. Impact transfers ink onto paper backed by the rubber platen. Overtyping adds another impression.</p></div></li><li><span>03</span><div><h3>One tooth at a time</h3><p>After impact, the escapement releases the spring-pulled carriage by one character. At the right margin it stops. A bell warns you before you arrive.</p></div></li><li><span>04</span><div><h3>The return</h3><p>Enter returns the carriage and turns the platen for a new line. Backspace reverses one space without lifting ink. Arrow keys turn the platen in either direction.</p></div></li></ol><details class="model-note"><summary>About the simulation & its sources</summary><p>This is a reduced mechanical model: fixed-step angular motion, inertia, spring forces, damping, contact, and carriage stops. Values are illustrative, not measurements of a particular machine. Paper follows a constrained path around the platen; it is not a full sheet-deformation or ink-fluid simulation. Your keyboard cannot sense pressure, so strike force is adjustable.</p><p>The design combines a basket shift with full-drop escapement; it is a mechanical study, not a replica of a named model.</p><ul><li><a href="https://files.eric.ed.gov/fulltext/ED173578.pdf" target="_blank" rel="noopener noreferrer">U.S. Navy, Basic Machines — typewriter mechanisms, PDF pages 103–116 ↗</a></li><li><a href="https://site.xavier.edu/polt/typewriters/Royal1955.pdf" target="_blank" rel="noopener noreferrer">Royal service manual, 1955 — escapement, ribbon and basket shift ↗</a></li><li><a href="https://www.uspto.gov/web/patents/classification/uspc400/defs400.htm" target="_blank" rel="noopener noreferrer">USPTO Class 400 — full-drop escapement and ink transfer ↗</a></li></ul></details><p class="guide-tip"><kbd>Tab</kbd> advances to the next 8-column stop while the machine has focus. <kbd>Esc</kbd> releases focus, or frees jammed bars.</p></dialog>
+  <dialog id="settings-dialog" class="modal settings-dialog"><div class="dialog-header"><span class="eyebrow">FIND YOUR TOUCH</span><button class="icon-button dialog-close" aria-label="Close machine settings">${icon('close')}</button></div><h2>The small adjustments.</h2><label class="range-label" for="force-input">Strike force <output id="force-value">1.00×</output></label><input id="force-input" type="range" min="0.55" max="1.4" step="0.05" value="1"><div class="range-ends"><span>Light touch</span><span>Firm impression</span></div><label class="select-label" for="spacing-input">Line spacing<select id="spacing-input"><option value="1">Single · 1/6 in</option><option value="1.5">One and a half</option><option value="2">Double · 1/3 in</option></select></label><fieldset class="ribbon-field"><legend>Ribbon color</legend><label><input type="radio" name="ribbon" value="black" checked><span class="ribbon-dot black"></span> Carbon black</label><label><input type="radio" name="ribbon" value="red"><span class="ribbon-dot red"></span> Vermilion</label></fieldset><label class="select-label" for="speed-input">Mechanism speed<select id="speed-input"><option value="1">Real time · 1×</option><option value="0.25">Slow motion · ¼×</option></select></label><p class="setting-note">Slow motion makes each impact visible. Your keystrokes stay queued while the mechanism catches up.</p></dialog>
   <dialog id="tray-dialog" class="modal tray-dialog"><div class="dialog-header"><span class="eyebrow">NOTHING DISAPPEARS</span><button class="icon-button dialog-close" aria-label="Close saved sheets">${icon('close')}</button></div><h2>The paper tray.</h2><p class="dialog-intro">Previous sheets stay here. Each one can be viewed and downloaded with every impression intact.</p><div id="tray-list" class="tray-list"></div><div id="archive-preview" class="archive-preview" hidden><div class="archive-preview-heading"><span id="archive-title"></span><button id="archive-download" class="text-button">Download ${icon('download')}</button></div><div id="archive-canvas"></div></div></dialog>
 `;
 
 const get = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
-const machine = new TypewriterMachine();
+const machine = new BufferedTypewriter();
 const paper = new PaperStore();
 const audio = new TypewriterAudio();
 const stage = get('stage');
@@ -154,7 +154,7 @@ machine.onEvent = event => {
 function setView(next: ViewMode): void {
   view = next; scene?.setView(next); paperView.hidden = next !== 'paper';
   document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button => { const active = button.dataset.view === next; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); });
-  if (next === 'inspect') { setCutaway(true); message('The cover is open. Type slowly and follow the mechanism.', 4500); }
+  if (next === 'inspect') { setCutaway(true); message('The cover is open. Type and follow the mechanism.', 4500); }
   if (next === 'paper') { updatePaperZoom(); get('paper-view-count').textContent = `${paper.current.impressions.length} impressions · Ivory stock`; message('You can keep typing here. The ink still lands on the same sheet.', 4500); }
 }
 function fitPaperZoom(): number {
@@ -211,8 +211,9 @@ document.querySelectorAll<HTMLInputElement>('input[name="ribbon"]').forEach(inpu
 
 listen(get('new-sheet'), 'click', () => {
   releaseAll(); gesture();
+  get('new-sheet').blur();
   // New paper may be loaded only after all moving bars have returned.
-  if (machine.state.returning || machine.state.bars.some(bar => bar.angle > .025 || Math.abs(bar.velocity) > .1)) { message('Let the mechanism settle before loading a new sheet.'); return; }
+  if (machine.busy || (machine.pendingCount > 0 && !machine.waitingAtMargin)) { message('Let the queued keystrokes finish before loading a new sheet.'); return; }
   paper.newSheet(); machine.newSheet(); scene?.markPaperDirty(); saveNow();
   message('A new sheet is ready. The previous page is safe in the tray.', 4200);
   get('new-sheet').blur();
@@ -280,7 +281,7 @@ function frame(now: number): void {
   const state = machine.state;
   const position = `${state.column}/${state.line}`;
   if (position !== lastPosition) { lastPosition = position; saveSoon(); }
-  const hud = `${position}/${paper.current.id}/${state.jammed}/${state.returning}`;
+  const hud = `${position}/${paper.current.id}/${state.jammed}/${state.returning}/${machine.pendingCount}`;
   if (hud !== lastHud) {
     lastHud = hud;
     get('sheet-number').textContent = String(paper.current.id).padStart(2, '0');
@@ -291,7 +292,13 @@ function frame(now: number): void {
     get('clear-jam').hidden = !state.jammed;
     document.body.classList.toggle('is-jammed', state.jammed);
   }
-  if (now > statusUntil && !state.jammed) {
+  if (machine.pendingCount > 0) {
+    const waiting = machine.waitingAtMargin
+      ? `${machine.pendingCount} keystrokes waiting. Press Enter or load a new sheet to continue.`
+      : `${machine.pendingCount} keystrokes queued. The machine is catching up.`;
+    if (lastStatus !== waiting) { get('status-message').textContent = waiting; lastStatus = waiting; }
+    statusUntil = 0;
+  } else if (now > statusUntil && !state.jammed) {
     const idle = paper.current.impressions.length ? 'Take your time. The page is yours.' : 'Your page is waiting. Start typing.';
     if (lastStatus !== idle) { get('status-message').textContent = idle; lastStatus = idle; }
   }
@@ -299,7 +306,10 @@ function frame(now: number): void {
 }
 animationFrame = requestAnimationFrame(frame);
 document.addEventListener('visibilitychange', () => { lastTime = performance.now(); if (document.hidden) { releaseAll(); saveNow(); } }, { signal: abort.signal });
-window.addEventListener('beforeunload', saveNow, { signal: abort.signal });
+window.addEventListener('beforeunload', event => {
+  saveNow();
+  if (machine.hasPendingInput) { event.preventDefault(); event.returnValue = ''; }
+}, { signal: abort.signal });
 function dispose(): void { if (disposed) return; disposed = true; saveNow(); cancelAnimationFrame(animationFrame); releaseAll(); paperResize.disconnect(); abort.abort(); scene?.dispose(); audio.dispose(); }
 window.addEventListener('pagehide', event => { if (!event.persisted) dispose(); else { releaseAll(); saveNow(); } }, { signal: abort.signal });
 if (import.meta.hot) import.meta.hot.dispose(dispose);

@@ -162,6 +162,10 @@ export class TypewriterMachine implements MachineAPI {
   private get carriageMoving(): boolean { return Math.abs(this.state.carriage - this.carriageTarget) > 0.00001; }
   private get feedMoving(): boolean { return this.state.feed !== this.state.line; }
   private get barsMoving(): boolean { return this.state.bars.some(bar => bar.angle > 0.015 || this.flights.get(bar.key)?.active); }
+  /** A complete mechanical cycle, including return, must finish before a buffered stroke. */
+  get readyForInput(): boolean {
+    return !this.state.jammed && !this.state.returning && !this.carriageMoving && !this.feedMoving && !this.barsMoving;
+  }
   private notice(message: string): void { this.onEvent({ type: 'notice', message }); }
   private sound(sound: 'strike' | 'space' | 'return' | 'bell' | 'jam', energy?: number): void { this.onEvent({ type: 'sound', sound, energy }); }
 

@@ -4,6 +4,10 @@
     {
       "id": 0,
       "theme": "mechanical-typewriter"
+    },
+    {
+      "id": 1,
+      "theme": "buffered-typing"
     }
   ]
 }

@@ -2,6 +2,8 @@
 
 A working 3D manual typewriter in a quiet, browser-based writing room. Type with your keyboard or click the machine's keys. Every impression is ink on paper: backspace moves the carriage and overtyping adds ink.
 
+Fast typing is buffered: letters, spaces and carriage controls wait their turn while the mechanism animates, including in slow motion. Case, ribbon color and strike force are captured when you press each key. The status shows how many keystrokes are waiting. At a hard margin, overflow stays queued until you press Enter, backspace, or load a new sheet; there is no automatic wrap. Let the queue finish before closing the tab. The browser warns if you try to leave with unprinted input; queued keys themselves are not stored between page loads.
+
 ## Run
 
 Requires Node.js 24 or later.
@@ -43,6 +45,6 @@ Primary sources consulted:
 
 ## Physical model and limits
 
-The mechanics run at a fixed time step with angular inertia, restoring springs, damping, gravitational torque, impact restitution, and constrained carriage stops. Printing depends on typebar contact, and overlapping bars can jam at their common guide. The paper follows a constrained path around a cylindrical platen; its texture retains fixed paper coordinates during feeding and carriage travel.
+The mechanics run at a fixed time step with angular inertia, restoring springs, damping, gravitational torque, impact restitution, and constrained carriage stops. Printing depends on typebar contact. The underlying mechanism models typebar collisions, while the writing buffer sequences strokes safely so fast input does not cause jams or dropped letters. The paper follows a constrained path around a cylindrical platen; its texture retains fixed paper coordinates during feeding and carriage travel.
 
 This is a reduced mechanical simulation, not a measured digital twin. Spring constants, masses, collisions and the synthetic sound are illustrative. Paper is not a finite-element model, and ink is textured compositing rather than a fluid solver. Normal keyboards have no pressure sensor: the touch setting supplies the modeled strike force. Slow motion scales simulation time to make the mechanism visible.
