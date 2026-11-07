@@ -19,8 +19,8 @@ Build on Node.js 24 with the committed dependency lock and existing tests. Use S
 
 ## Acceptance criteria
 
-- [ ] All mechanical tests and the Pages build pass, with assets rooted at /typewriter/.
-- [ ] Independent review accepts the committed workflow and deployment permissions.
+- [x] All mechanical tests and the Pages build pass, with assets rooted at /typewriter/.
+- [x] Independent review accepts the committed workflow and deployment permissions.
 - [ ] GitHub Actions deploys successfully; the live URL loads and retains a fast keyboard burst in a headless browser.
 - [ ] Source and records are merged and pushed; task browser and worktree resources are cleaned.
 
@@ -30,4 +30,4 @@ Build on Node.js 24 with the committed dependency lock and existing tests. Use S
 
 ## Outcome
 
-Pending. Record the verified revision, checks and limitations at closure.
+Source verified at 42325e726dc4c8a4f137c3c171bb3e19643ddfa2: all 31 tests, the Pages build, generated asset paths, diff check and work-document check passed. [Independent review](reviews/0_implementation.md) found no material issues. Pages is enabled with workflow builds and HTTPS enforced. Publication and the live browser check remain.
