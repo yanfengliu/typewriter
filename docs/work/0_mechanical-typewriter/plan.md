@@ -1,6 +1,6 @@
 # Interactive mechanical typewriter
 
-Status: active
+Status: complete
 Owner: Codex integration
 Created: 2026-11-07
 Updated: 2026-11-07
@@ -19,11 +19,11 @@ Separate deterministic mechanics from renderer and ink surface. Follow the prima
 
 ## Acceptance criteria
 
-- [ ] Physical keys and clickable 3D keys create ink at impact; the fixed printing point and moving carriage agree.
-- [ ] Backspace preserves ink, overstrikes accumulate, margins do not wrap, return feeds paper, and shift selects uppercase.
-- [ ] Inertia, spring return, collisions/jams, and pressure-dependent impressions are modeled and tested.
-- [ ] Desktop and mobile layouts, alternate views, source notes, paper archive and PNG export work through real browser controls.
-- [ ] Build, mechanics tests, independent review, secret scan, and available CI pass; task-owned processes and temporary files are cleaned up.
+- [x] Physical keys and clickable 3D keys create ink at impact; the fixed printing point and moving carriage agree.
+- [x] Backspace preserves ink, overstrikes accumulate, margins do not wrap, return feeds paper, and shift selects uppercase.
+- [x] Inertia, spring return, collisions/jams, and pressure-dependent impressions are modeled and tested.
+- [x] Desktop and mobile layouts, alternate views, source notes, paper archive and PNG export work through real browser controls.
+- [x] Build, 20 tests, independent review, and secret scan pass. No CI workflows are configured. Task-owned browser and server process checks are clear; only selected screenshots and usable build/dependencies are retained.
 
 ## Implementation steps
 
@@ -34,4 +34,6 @@ Separate deterministic mechanics from renderer and ink surface. Follow the prima
 
 ## Outcome
 
-Pending. Record the verified revision, checks and limitations at closure.
+Implemented and merged/pushed to main through db1ba3a; final reviewed code is 0b7b39d9036306271c862075ea25a2f0bef0d9d0. [Review 0](reviews/0_implementation.md) found stale-tab data loss and ineffective clickable Shift; [review 1](reviews/1_integration.md) independently verified both fixes. All 20 tests and TypeScript/production build pass. Headless Chrome checks covered real keyboard and raycast inputs, permanent overstrikes, carriage return, red ribbon, double spacing, slow motion, jam recovery, zoom, PNG export, exact reload restoration, two-tab conflicts, desktop/mobile layouts and arbitrary camera orbit. The built app rendered without runtime errors on hardware WebGL and contains no development inspection hook. No GitHub Actions runs or workflow configuration exist for this repository.
+
+The model uses illustrative physical parameters, constrained paper geometry and composited ink; it is not a measured historical replica or a deformable-material solver. Keyboard pressure is supplied through the touch setting. Storage conflict protection is optimistic rather than atomic for simultaneous writers; the README instructs using one writing tab. The Three.js bundle has a non-fatal size advisory (about 149 kB gzip). Claude review was unavailable due to an expired login; an independent pinned Codex reviewer completed both rounds. No deployment was requested or performed.
