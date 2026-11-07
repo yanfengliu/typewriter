@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-07: **The mechanism becomes an interactive 3D field guide** — added seven chapters with animated assembly separation, focused part labels, playback and scrubbing. The tour uses independent demonstration paper and pauses live input without discarding queued strokes. Reduced-motion and narrow-screen layouts are supported.
+
 - 2026-11-07: **GitHub Pages publication is automated** — added a Node.js 24 test/build/deploy workflow and a production build for the `/typewriter/` project path. Deployment uploads only `dist`; local development keeps its existing URL.
 
 - 2026-11-07: **Fast typing is retained while the mechanism catches up** — added ordered buffering for letters and controls, snapshots of Shift/ribbon/force, a visible queue count, retained margin overflow and an unload warning for unprinted input. Eleven new regressions cover bursts and control ordering without changing permanent ink semantics.

@@ -12,6 +12,10 @@
     {
       "id": 2,
       "theme": "github-pages"
+    },
+    {
+      "id": 3,
+      "theme": "mechanism-tutorial"
     }
   ]
 }

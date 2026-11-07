@@ -24,12 +24,23 @@ export interface MachineAPI {
   restorePosition(column: number, line: number): void;
 }
 export type ViewMode = 'write' | 'inspect' | 'paper';
+export type TutorialFocus = 'overview' | 'keys' | 'typebars' | 'ribbon' | 'escapement' | 'shift' | 'return';
+/** A separate teaching diagram; never writes to the user's mechanical state or paper. */
+export interface TutorialFrame {
+  focus: TutorialFocus;
+  progress: number;
+  explosion: number;
+  state: MechanicalState;
+  ink: '' | 'a' | 'A';
+  reducedMotion: boolean;
+}
 export interface SceneAPI {
   update(state: MechanicalState, dt: number): void;
   setView(mode: ViewMode): void;
   setCutaway(active: boolean): void;
   markPaperDirty(): void;
   resetCamera(): void;
+  setTutorial(frame: TutorialFrame | null): void;
   dispose(): void;
 }
 export const COLUMNS = 66;

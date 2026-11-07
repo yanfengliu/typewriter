@@ -4,6 +4,7 @@ import { BufferedTypewriter } from './buffered-typewriter';
 import { createStudio } from './scene';
 import { PaperStore } from './paper';
 import { TypewriterAudio } from './audio';
+import { createTutorial } from './tutorial';
 import { baseKey, COLUMNS, PAPER_WIDTH, SHIFT_MAP, type SceneAPI, type ViewMode, type Sheet } from './contracts';
 
 const icons = {
@@ -65,6 +66,7 @@ const audio = new TypewriterAudio();
 const stage = get('stage');
 const paperView = get('paper-view');
 let scene: SceneAPI | undefined;
+let tutorial: ReturnType<typeof createTutorial> | undefined;
 let view: ViewMode = 'write';
 let cutaway = false;
 let speed = 1;
@@ -99,6 +101,7 @@ function gesture(): void { void audio.unlock(); }
 function restoreShift(): void { machine.setShift(shiftHeld || capsLock || pointerShiftLatched || !!pointerShiftInFlight); }
 
 function clickKey(key: string, down: boolean): void {
+  if (tutorial?.active) return;
   if (down) {
     gesture(); stage.focus({ preventScroll: true });
     if (key === 'Shift') {
@@ -134,6 +137,16 @@ catch {
   stage.innerHTML = '<div class="webgl-fallback"><span class="eyebrow">THE WRITING CAN CONTINUE</span><h2>The 3D room needs WebGL 2.</h2><p>Try a browser with hardware acceleration enabled. You can still type and read your paper here.</p><button id="fallback-paper" class="new-sheet">Open paper</button></div>';
   get('fallback-paper').addEventListener('click', () => setView('paper'), { signal: abort.signal });
 }
+
+tutorial = createTutorial(stage, scene, {
+  onOpen() { releaseAll(); saveNow(); paperView.hidden = true; },
+  onClose() { scene?.setCutaway(cutaway); setView(view); },
+  onSources() { showDialog('how-dialog'); },
+});
+// Keep the supporting modal inside its parent tour so native modal focus and
+// the accessibility tree agree about which guide is on top.
+get('tutorial-dialog').append(get('how-dialog'));
+get('how-button').setAttribute('aria-label', 'Open interactive mechanism tutorial');
 
 machine.onEvent = event => {
   if (event.type === 'impression') {
@@ -188,7 +201,7 @@ const paperResize = new ResizeObserver(() => { if (view === 'paper') updatePaper
 paperResize.observe(get('paper-canvas-wrap'));
 listen(get('cutaway-button'), 'click', () => { gesture(); setCutaway(!cutaway); get('cutaway-button').blur(); });
 listen(get('reset-view'), 'click', () => { scene?.resetCamera(); get('reset-view').blur(); });
-listen(get('how-button'), 'click', () => showDialog('how-dialog'));
+listen(get('how-button'), 'click', () => tutorial?.open());
 listen(get('settings-button'), 'click', () => showDialog('settings-dialog'));
 listen(get('sound-button'), 'click', () => {
   audio.enabled = !audio.enabled; if (audio.enabled) gesture();
@@ -196,9 +209,9 @@ listen(get('sound-button'), 'click', () => {
   button.innerHTML = `${icon(audio.enabled ? 'sound' : 'mute')}<span>Sound ${audio.enabled ? 'on' : 'off'}</span>`; button.blur();
 });
 document.querySelectorAll<HTMLButtonElement>('.dialog-close').forEach(button => listen(button, 'click', () => button.closest('dialog')?.close()));
-document.querySelectorAll<HTMLDialogElement>('dialog').forEach(dialog => {
+document.querySelectorAll<HTMLDialogElement>('dialog.modal').forEach(dialog => {
   listen(dialog, 'click', event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } });
-  listen(dialog, 'close', () => { (document.activeElement as HTMLElement | null)?.blur(); });
+  listen(dialog, 'close', () => { if (!tutorial?.active) (document.activeElement as HTMLElement | null)?.blur(); });
 });
 
 listen(get<HTMLInputElement>('force-input'), 'input', event => {
@@ -258,6 +271,9 @@ window.addEventListener('keydown', event => {
   const supported = event.key.length === 1 || ['Enter', 'Backspace', 'Tab', 'ArrowUp', 'ArrowDown'].includes(event.key);
   if (!supported) return;
   event.preventDefault(); if (event.repeat) return;
+  // Once writing starts, subsequent spaces belong to the sheet rather than a
+  // previously focused toolbar button (including the tutorial's return focus).
+  stage.focus({ preventScroll: true });
   capsLock = event.getModifierState('CapsLock');
   // event.key already includes the browser's CapsLock/Shift selection. Match
   // that face before the model maps a base key, including CapsLock + Shift.
@@ -277,7 +293,9 @@ let disposed = false;
 function frame(now: number): void {
   if (disposed) return;
   const dt = Math.min((now - lastTime) / 1000, .05); lastTime = now;
-  machine.step(dt * speed); scene?.update(machine.state, dt);
+  if (tutorial?.active) tutorial.update(dt);
+  else machine.step(dt * speed);
+  scene?.update(machine.state, dt);
   const state = machine.state;
   const position = `${state.column}/${state.line}`;
   if (position !== lastPosition) { lastPosition = position; saveSoon(); }
@@ -310,7 +328,7 @@ window.addEventListener('beforeunload', event => {
   saveNow();
   if (machine.hasPendingInput) { event.preventDefault(); event.returnValue = ''; }
 }, { signal: abort.signal });
-function dispose(): void { if (disposed) return; disposed = true; saveNow(); cancelAnimationFrame(animationFrame); releaseAll(); paperResize.disconnect(); abort.abort(); scene?.dispose(); audio.dispose(); }
+function dispose(): void { if (disposed) return; disposed = true; saveNow(); cancelAnimationFrame(animationFrame); releaseAll(); paperResize.disconnect(); tutorial?.dispose(); abort.abort(); scene?.dispose(); audio.dispose(); }
 window.addEventListener('pagehide', event => { if (!event.persisted) dispose(); else { releaseAll(); saveNow(); } }, { signal: abort.signal });
 if (import.meta.hot) import.meta.hot.dispose(dispose);
-if (import.meta.env.DEV) (window as unknown as { __atelier: unknown }).__atelier = { machine, paper, scene };
+if (import.meta.env.DEV) (window as unknown as { __atelier: unknown }).__atelier = { machine, paper, scene, tutorial };

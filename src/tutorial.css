@@ -1,0 +1,46 @@
+.tutorial-open{overflow:hidden}
+.tutorial-dialog{width:100vw;max-width:none;height:100svh;max-height:none;margin:0;padding:0;border:0;color:var(--ink);background:radial-gradient(ellipse at 70% 40%,#f8f5ed,#eeeae2 72%);overflow:hidden}
+.tutorial-dialog[open]{display:grid;grid-template-columns:335px minmax(0,1fr);grid-template-rows:94px minmax(0,1fr) 146px}
+.tutorial-dialog::backdrop{background:#eeeae2}
+.tutorial-header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:0 38px;border-bottom:1px solid var(--line)}
+.tutorial-header .eyebrow{font-size:8px;letter-spacing:2px;color:var(--orange)}
+.tutorial-header-title{display:block;font:23px Georgia,serif;margin-top:7px}
+.tutorial-close{display:flex;align-items:center;gap:20px;font-size:12px;min-height:44px}
+.tutorial-close span{font:28px Georgia,serif}
+.tutorial-sidebar{grid-column:1;grid-row:2;padding:29px 28px 22px 38px;border-right:1px solid var(--line);overflow:auto;scrollbar-width:thin}
+.tutorial-chapters{display:grid;gap:3px;margin-bottom:32px}
+.tutorial-chapters button{display:flex;align-items:center;gap:15px;min-height:38px;padding:9px 11px;text-align:left;border-radius:5px;color:#7a8175;font-size:11px}
+.tutorial-chapters button>span:first-child{font:10px 'Courier New',monospace;color:#929889}
+.tutorial-chapters button:hover{background:#e2e5d9}
+.tutorial-chapters button[aria-current]{background:#dbe2d2;color:#254d40}
+.tutorial-chapters button[aria-current]>span:first-child{color:#b6673e}
+.tutorial-step-number{color:var(--orange);font-size:8px;letter-spacing:1.7px}
+.tutorial-copy h2{font:38px/1.08 Georgia,serif;letter-spacing:-1.4px;font-weight:400;margin:15px 0 19px}
+.tutorial-body{font:16px/1.65 Georgia,serif;color:#53634f;margin:0 0 17px}
+.tutorial-detail{font-size:11px;line-height:1.75;color:#7a8173;margin:0;padding-left:14px;border-left:2px solid #c7b99b}
+.tutorial-sources{margin-top:24px;font-size:10px;color:#69785e;min-height:35px;text-decoration:underline;text-underline-offset:4px}
+.tutorial-visual{grid-column:2;grid-row:2;position:relative;min-width:0;min-height:0;overflow:hidden}
+.tutorial-scene-host{position:absolute;inset:0}
+.tutorial-dialog #stage{position:absolute;inset:0;width:100%;height:100%;outline:none}
+.tutorial-dialog #stage:focus-visible::after{content:'DRAG TO ORBIT · SPACE TO PLAY / PAUSE';bottom:52px}
+.tutorial-diagram-note{position:absolute;inset:24px 28px auto;display:flex;justify-content:space-between;gap:14px;pointer-events:none;font-size:9px;line-height:1.5;color:#8b8f81}
+.tutorial-diagram-mode{font-size:8px;letter-spacing:1.8px;color:#77866b}
+.tutorial-phase{position:absolute;bottom:21px;left:20px;right:20px;width:fit-content;max-width:calc(100% - 40px);margin:0 auto;padding:8px 13px;border:1px solid #d6dac8;border-radius:5px;background:#f7f5ebed;text-align:center;font:15px Georgia,serif;color:#5a6b4d;pointer-events:none}
+.tutorial-no-webgl{position:absolute;top:30%;left:12%;right:12%;padding:28px;background:#f5f1e7;border:1px solid #ccd2c3;border-radius:8px;font:20px/1.5 Georgia,serif}
+.tutorial-controls{grid-column:1/-1;grid-row:3;padding:18px 38px 12px;border-top:1px solid var(--line);background:#f8f6eecc;display:grid;grid-template-columns:minmax(200px,1fr) auto;gap:10px 30px;align-content:center}
+.tutorial-transport{display:flex;align-items:center;gap:16px;min-width:0}
+.tutorial-play{min-height:43px;min-width:106px;padding:10px 16px;border-radius:6px;background:var(--green);color:#fff9e9;font-size:13px;display:flex;justify-content:center;align-items:center;gap:11px}
+.tutorial-timeline-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#tutorial-timeline{min-width:50px;width:100%;accent-color:var(--green);height:30px;cursor:pointer}
+.tutorial-progress{font:11px 'Courier New',monospace;min-width:34px;color:#7c8770}
+.tutorial-actions{display:flex;gap:12px;align-items:center}
+.tutorial-actions>button{font-size:10px;padding:10px 12px;border:1px solid #cdd3c5;min-height:40px;border-radius:5px}
+.tutorial-actions>button[aria-pressed=true]{background:#dbe2d2;border-color:#9daa8c}
+.tutorial-step-actions{display:flex;gap:7px;border-left:1px solid var(--line);padding-left:12px}
+.tutorial-step-actions button{min-height:40px;padding:9px 12px;font-size:11px}
+.tutorial-step-actions button:disabled{cursor:default;opacity:.3}
+.tutorial-next{color:#254d40}
+.tutorial-safe-note{grid-column:1/-1;font-size:9px;line-height:1.5;letter-spacing:.2px;margin:0;color:#949787}
+@media(min-width:1600px){.tutorial-dialog[open]{grid-template-columns:385px minmax(0,1fr)}.tutorial-sidebar{padding:36px 40px}.tutorial-copy h2{font-size:45px}.tutorial-body{font-size:18px}.tutorial-chapters button{min-height:42px;font-size:12px}}
+@media(max-width:1050px){.tutorial-dialog[open]{grid-template-columns:285px minmax(0,1fr);grid-template-rows:80px minmax(0,1fr) 160px}.tutorial-header{padding:0 25px}.tutorial-sidebar{padding:22px}.tutorial-copy h2{font-size:33px}.tutorial-body{font-size:15px}.tutorial-chapters{margin-bottom:24px}.tutorial-controls{grid-template-columns:1fr;padding:14px 25px;gap:10px}.tutorial-actions{grid-row:2;justify-content:space-between}.tutorial-step-actions{margin-left:auto}.tutorial-safe-note{font-size:8px}.tutorial-diagram-note{inset:20px 18px auto;flex-direction:column;gap:3px}.tutorial-phase{font-size:13px}}
+@media(max-width:700px){.tutorial-dialog{overflow:auto}.tutorial-dialog[open]{display:flex;flex-direction:column;height:100svh}.tutorial-header{min-height:72px;flex-shrink:0;padding:12px 20px}.tutorial-header-title{font-size:19px;margin-top:5px}.tutorial-header .eyebrow{font-size:6px}.tutorial-close{font-size:10px;gap:9px}.tutorial-sidebar{display:contents}.tutorial-chapters{display:flex;order:1;overflow-x:auto;flex-shrink:0;gap:5px;padding:12px 18px;margin:0;scrollbar-width:thin;border-bottom:1px solid var(--line)}.tutorial-chapters button{flex-shrink:0;gap:7px;min-height:35px;padding:9px;font-size:10px}.tutorial-copy{order:3;padding:20px 24px 8px}.tutorial-copy h2{font-size:30px;margin:10px 0 12px;letter-spacing:-1px}.tutorial-body{font-size:15px;line-height:1.6;margin-bottom:12px}.tutorial-detail{font-size:10px}.tutorial-sources{order:4;align-self:flex-start;margin:0 24px 12px;min-height:35px}.tutorial-visual{order:2;min-height:330px;height:42svh;max-height:460px;flex-shrink:0;border-bottom:1px solid var(--line)}.tutorial-diagram-note{inset:12px 18px auto;flex-direction:row;font-size:7px}.tutorial-diagram-mode{font-size:6px;letter-spacing:1px}.tutorial-phase{font-size:11px;bottom:11px;left:14px;right:14px}.tutorial-controls{order:5;display:flex;flex-wrap:wrap;padding:16px 20px 20px;gap:12px;margin-top:auto;flex-shrink:0}.tutorial-transport{width:100%;gap:12px}.tutorial-play{min-width:87px;min-height:40px;font-size:11px;padding:8px 11px}.tutorial-actions{width:100%;gap:8px;flex-wrap:wrap}.tutorial-actions>button{font-size:9px;padding:9px;min-height:37px}.tutorial-step-actions{gap:2px;padding-left:6px}.tutorial-step-actions button{font-size:9px;padding:9px 7px}.tutorial-safe-note{font-size:8px;line-height:1.6}.tutorial-no-webgl{font-size:16px;padding:20px}.tutorial-dialog #stage:focus-visible::after{font-size:6px;bottom:30px}}

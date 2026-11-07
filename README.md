@@ -21,6 +21,12 @@ The public site is [Atelier on GitHub Pages](https://yanfengliu.github.io/typewr
 
 `npm run build:pages` produces the same deployment build with asset URLs under `/typewriter/`. The regular development and build commands keep their default root path. Pages uses the GitHub Actions source in repository settings. No runtime server or credentials are included in the published bundle.
 
+## Interactive mechanism tutorial
+
+Choose **The mechanism** in the header for a seven-chapter 3D tour. Play, pause or scrub each demonstration; separate the assemblies, orbit the diagram, and return to writing at any time. The tour covers the whole assembly, key linkage, typebar impact, ribbon, full-drop escapement, basket shift, and carriage return with line feed. **Mechanics & sources** opens the supporting guide and primary references.
+
+The tour pauses the live mechanism and keeps queued input. Its separate demonstration paper and explanatory poses never modify your saved sheets. Scrubbing can rewind this demonstration; written ink in the writing room remains permanent. Motion is slowed for explanation, and separated parts are an exploded diagram, not a physical disassembly simulation. Reduced-motion preferences disable automatic playback and camera transitions; the controls still work.
+
 ## Controls
 
 | Input | Action |

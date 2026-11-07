@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { KEY_ROWS, type MechanicalState, type SceneAPI, type ViewMode } from './contracts';
+import { KEY_ROWS, PAPER_WIDTH, PAPER_HEIGHT, PAPER_LEFT, PAPER_TOP, LETTER_PITCH, type MechanicalState, type SceneAPI, type ViewMode, type TutorialFocus, type TutorialFrame } from './contracts';
 
 /** Inch-scaled rendering. The platen is the constraint on the sheet's inextensible path. */
 export function createStudio(
@@ -79,6 +79,15 @@ export function createStudio(
 
   const machine = new THREE.Group();
   scene.add(machine);
+  // These parents keep the working machine's local pivots intact when the tour
+  // separates the actual assemblies. Only their translations are illustrative.
+  const shell = new THREE.Group();
+  const keyboard = new THREE.Group();
+  const basketAssembly = new THREE.Group();
+  const ribbonAssembly = new THREE.Group();
+  const carriageAssembly = new THREE.Group();
+  const escapementAssembly = new THREE.Group();
+  machine.add(shell, keyboard, basketAssembly, ribbonAssembly, carriageAssembly, escapementAssembly);
   const covers: THREE.Object3D[] = [];
   function box(parent: THREE.Object3D, w: number, h: number, d: number, x: number, y: number, z: number,
     material: THREE.Material = enamel, bevel = 0.07) {
@@ -135,34 +144,34 @@ export function createStudio(
   }
 
   // The heavy cast base, rubber feet, and rolled enamel shell.
-  for (const x of [-4.65, 4.65]) for (const z of [-1.8, 4.0]) cylinder(machine, 0.43, 0.23, x, 0.115, z, rubber);
-  box(machine, 11.7, 0.65, 8.0, 0, 0.54, 1.0, darkEnamel, 0.22);
-  box(machine, 11.65, 0.11, 7.91, 0, 0.73, 1.0, chrome, 0.045);
-  box(machine, 11.55, 0.24, 7.82, 0, 0.82, 1.0, enamel, 0.1);
-  const keyboardBed = box(machine, 10.6, 0.13, 4.1, 0, 0.91, 2.65, darkEnamel);
+  for (const x of [-4.65, 4.65]) for (const z of [-1.8, 4.0]) cylinder(shell, 0.43, 0.23, x, 0.115, z, rubber);
+  box(shell, 11.7, 0.65, 8.0, 0, 0.54, 1.0, darkEnamel, 0.22);
+  box(shell, 11.65, 0.11, 7.91, 0, 0.73, 1.0, chrome, 0.045);
+  box(shell, 11.55, 0.24, 7.82, 0, 0.82, 1.0, enamel, 0.1);
+  const keyboardBed = box(keyboard, 10.6, 0.13, 4.1, 0, 0.91, 2.65, darkEnamel);
   keyboardBed.rotation.x = 0.105;
   for (const x of [-5.38, 5.38]) {
-    const side = box(machine, 0.74, 0.68, 6.75, x, 1.02, 0.7, enamel, 0.22);
+    const side = box(shell, 0.74, 0.68, 6.75, x, 1.02, 0.7, enamel, 0.22);
     side.rotation.x = 0.07;
     covers.push(side);
-    box(machine, 0.08, 0.06, 6.0, x + Math.sign(x) * 0.22, 1.29, 0.7, chrome, 0.025);
+    box(shell, 0.08, 0.06, 6.0, x + Math.sign(x) * 0.22, 1.29, 0.7, chrome, 0.025);
   }
-  covers.push(box(machine, 10.8, 0.62, 0.73, 0, 1.31, -2.48, enamel, 0.2));
-  for (const x of [-4.05, 4.05]) covers.push(box(machine, 2.27, 0.37, 2.6, x, 1.43, -1.04, enamel, 0.16));
-  const shoulder = box(machine, 10.4, 0.35, 0.66, 0, 1.35, 0.55, enamel, 0.12);
+  covers.push(box(shell, 10.8, 0.62, 0.73, 0, 1.31, -2.48, enamel, 0.2));
+  for (const x of [-4.05, 4.05]) covers.push(box(shell, 2.27, 0.37, 2.6, x, 1.43, -1.04, enamel, 0.16));
+  const shoulder = box(shell, 10.4, 0.35, 0.66, 0, 1.35, 0.55, enamel, 0.12);
   covers.push(shoulder);
-  label(machine, 'A T E L I E R', 3.0, 0.48, 0, 0.55, 5.017);
-  label(machine, 'M E C H A N I C A L   /   0 1', 2.65, 0.26, 0, 0.29, 5.017, false, '#b4b99f');
-  label(machine, 'A T E L I E R', 2.4, 0.4, 0, 1.535, 0.56, true);
-  for (const x of [-5.2, 5.2]) for (const z of [-2.25, 4.35]) screw(machine, x, z < 0 ? 1.58 : 1.0, z);
+  label(shell, 'A T E L I E R', 3.0, 0.48, 0, 0.55, 5.017);
+  label(shell, 'M E C H A N I C A L   /   0 1', 2.65, 0.26, 0, 0.29, 5.017, false, '#b4b99f');
+  label(shell, 'A T E L I E R', 2.4, 0.4, 0, 1.535, 0.56, true);
+  for (const x of [-5.2, 5.2]) for (const z of [-2.25, 4.35]) screw(shell, x, z < 0 ? 1.58 : 1.0, z);
 
   // Keylevers have their own pivots; the keycaps are actual clickable geometry.
   const clickable: THREE.Object3D[] = [];
-  const keys = new Map<string, { group: THREE.Group; y: number; lever: THREE.Mesh }>();
+  const keys = new Map<string, { group: THREE.Group; y: number; lever: THREE.Mesh; pivot: THREE.Vector3; leverLength: number }>();
   function addKey(key: string, printed: string, x: number, y: number, z: number, width = 0) {
     const group = new THREE.Group();
     group.position.set(x, y, z);
-    machine.add(group);
+    keyboard.add(group);
     cylinder(group, 0.055, 0.36, 0, -0.18, 0, chrome, 'y', 12);
     if (width) {
       box(group, width, 0.18, 0.49, 0, 0, 0, chrome, 0.09);
@@ -181,8 +190,10 @@ export function createStudio(
       group.add(face);
       face.userData.key = key; clickable.push(face);
     }
-    const lever = rod(machine, new THREE.Vector3(x, y - 0.32, z), new THREE.Vector3(x * 0.86, 0.89, -0.25), 0.032, darkSteel);
-    keys.set(key, { group, y, lever });
+    const tip = new THREE.Vector3(x, y - 0.32, z);
+    const pivot = new THREE.Vector3(x * 0.86, 0.89, -0.25);
+    const lever = rod(keyboard, tip, pivot, 0.032, darkSteel);
+    keys.set(key, { group, y, lever, pivot, leverLength: tip.distanceTo(pivot) });
   }
   KEY_ROWS.forEach((row, r) => {
     const stagger = [0, 0.15, 0.31, 0.3][r];
@@ -193,15 +204,15 @@ export function createStudio(
   addKey('Shift', 'SHIFT', -4.65, 0.99, 3.77, 1.0);
   addKey('ShiftRight', 'SHIFT', 4.73, 0.99, 3.77, 0.95);
   addKey(' ', '', 0, 0.94, 4.59, 5.85);
-  for (const x of [-3.7, 3.7]) box(machine, 0.32, 0.075, 0.4, x, 0.89, 4.59, chrome);
+  for (const x of [-3.7, 3.7]) box(keyboard, 0.32, 0.075, 0.4, x, 0.89, 4.59, chrome);
 
   // Fixed carriage rails and the mainspring/escapement visible with the cover removed.
-  for (const z of [-2.27, -1.63]) cylinder(machine, 0.085, 12.5, 0, 1.80, z, chrome, 'x');
-  cylinder(machine, 0.58, 0.22, 4.18, 1.04, -1.78, darkSteel, 'z');
-  cylinder(machine, 0.49, 0.05, 4.18, 1.04, -1.64, gold, 'z');
+  for (const z of [-2.27, -1.63]) cylinder(shell, 0.085, 12.5, 0, 1.80, z, chrome, 'x');
+  cylinder(escapementAssembly, 0.58, 0.22, 4.18, 1.04, -1.78, darkSteel, 'z');
+  cylinder(escapementAssembly, 0.49, 0.05, 4.18, 1.04, -1.64, gold, 'z');
   const escapement = new THREE.Group();
   escapement.position.set(0.1, 1.15, -1.35);
-  machine.add(escapement);
+  escapementAssembly.add(escapement);
   cylinder(escapement, 0.39, 0.095, 0, 0, 0, brushed, 'z', 32);
   for (let i = 0; i < 20; i++) {
     const a = i * Math.PI * 2 / 20;
@@ -209,10 +220,28 @@ export function createStudio(
     tooth.rotation.z = -a;
   }
   cylinder(escapement, 0.085, 0.17, 0, 0, 0.025, darkSteel, 'z', 20);
-  box(machine, 0.45, 0.065, 0.12, 0.51, 1.38, -1.31, darkSteel);
+  // Separate pivoted dogs hand the toothed wheel from one stop to the next.
+  // They belong to the fixed escapement frame, not the rotating wheel.
+  const holdingDogs = new THREE.Group();
+  holdingDogs.name = 'Two holding dogs';
+  holdingDogs.position.copy(escapement.position);
+  escapementAssembly.add(holdingDogs);
+  box(holdingDogs, 0.12, 0.95, 0.10, 0.82, 0, -0.06, darkSteel, 0.025);
+  const dogs: THREE.Group[] = [];
+  for (const side of [1, -1]) {
+    const dog = new THREE.Group();
+    dog.name = side > 0 ? 'Holding dog' : 'Receiving dog';
+    dog.position.set(0.82, side * 0.36, 0.08);
+    holdingDogs.add(dog); dogs.push(dog);
+    rod(dog, new THREE.Vector3(), new THREE.Vector3(-0.42, -side * 0.11, 0), 0.042, brushed);
+    const nose = box(dog, 0.14, 0.075, 0.10, -0.43, -side * 0.11, 0, gold, 0.014);
+    nose.rotation.z = side * 0.25;
+    cylinder(dog, 0.085, 0.14, 0, 0, 0, chrome, 'z', 18);
+    cylinder(dog, 0.033, 0.155, 0, 0, 0, darkSteel, 'z', 12);
+  }
 
   const carriage = new THREE.Group();
-  machine.add(carriage);
+  carriageAssembly.add(carriage);
   box(carriage, 10.0, 0.22, 0.82, 0, 1.97, -1.94, darkEnamel, 0.08);
   for (const x of [-4.7, 4.7]) {
     box(carriage, 0.28, 0.91, 1.04, x, 2.22, -1.91, enamel, 0.1);
@@ -256,8 +285,8 @@ export function createStudio(
     box(carriage, 0.013, major ? 0.09 : 0.045, 0.009, -4 + i * 0.1, 2.14, -1.188, darkSteel, 0);
   }
   for (const x of [-0.23, 0.23]) {
-    box(machine, 0.05, 0.48, 0.07, x, 2.21, -1.18, chrome, 0.012);
-    box(machine, 0.16, 0.05, 0.065, x, 2.43, -1.18, chrome, 0.012);
+    box(ribbonAssembly, 0.05, 0.48, 0.07, x, 2.21, -1.18, chrome, 0.012);
+    box(ribbonAssembly, 0.16, 0.05, 0.065, x, 2.43, -1.18, chrome, 0.012);
   }
 
   // Continuous sheet: the outgoing front, lower half-wrap, and incoming rear tail.
@@ -336,7 +365,7 @@ export function createStudio(
   for (const x of [-3.92, 3.92]) {
     const spool = new THREE.Group();
     spool.position.set(x, 1.76, -0.97);
-    machine.add(spool); spools.push(spool);
+    ribbonAssembly.add(spool); spools.push(spool);
     cylinder(spool, 0.88, 0.065, 0, -0.12, 0, darkSteel);
     cylinder(spool, 0.71, 0.19, 0, 0.0, 0, ribbonBlack);
     cylinder(spool, 0.87, 0.065, 0, 0.13, 0, darkSteel);
@@ -356,7 +385,7 @@ export function createStudio(
     geometry.setIndex([0, 2, 1, 1, 2, 3, 2, 4, 3, 3, 4, 5, 4, 6, 5, 5, 6, 7]);
     const mesh = new THREE.Mesh(geometry, band === 0 ? ribbonBlack : ribbonRed);
     mesh.castShadow = true;
-    machine.add(mesh); ribbonMeshes.push(mesh);
+    ribbonAssembly.add(mesh); ribbonMeshes.push(mesh);
   }
   let lastRibbonLift = Number.NaN;
   function liftRibbon(lift: number) {
@@ -378,7 +407,7 @@ export function createStudio(
 
   // The fan's individual bars rotate rigidly about pivots, into one common guide.
   const basket = new THREE.Group();
-  machine.add(basket);
+  basketAssembly.add(basket);
   const barKeys = KEY_ROWS.join('').split('');
   const typebars = new Map<string, { group: THREE.Group; rest: THREE.Quaternion; hit: THREE.Quaternion }>();
   const impactPoint = new THREE.Vector3(0, 2.46, -1.265);
@@ -412,20 +441,141 @@ export function createStudio(
   const segment = new THREE.Mesh(new THREE.TubeGeometry(segmentCurve, 60, 0.09, 8, false), brushed);
   basket.add(segment);
   cylinder(basket, 0.07, 4.5, 0, 1.11, 1.0, rubber, 'x');
-  cylinder(machine, 0.045, 8.6, 0, 0.99, 0.05, brushed, 'x');
+  cylinder(basketAssembly, 0.045, 8.6, 0, 0.99, 0.05, brushed, 'x');
 
   // Small mechanical details give the cutaway a legible structure.
   const bellGroup = new THREE.Group();
   bellGroup.position.set(4.72, 1.6, -2.1);
-  machine.add(bellGroup);
+  escapementAssembly.add(bellGroup);
   const bellShell = new THREE.Mesh(new THREE.SphereGeometry(0.34, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), gold);
   bellGroup.add(bellShell);
   cylinder(bellGroup, 0.045, 0.38, 0, 0.04, 0, chrome, 'y', 12);
-  box(machine, 0.06, 0.06, 1.1, 4.35, 1.52, -2.0, brushed);
-  const selector = box(machine, 0.11, 0.12, 0.40, 5.38, 1.55, -0.11, chrome);
+  box(escapementAssembly, 0.06, 0.06, 1.1, 4.35, 1.52, -2.0, brushed);
+  const selector = box(ribbonAssembly, 0.11, 0.12, 0.40, 5.38, 1.55, -0.11, chrome);
   selector.rotation.x = -0.25;
-  cylinder(machine, 0.065, 0.015, 5.39, 1.38, 0.28, ribbonRed, 'y', 16);
-  cylinder(machine, 0.065, 0.015, 5.39, 1.40, -0.45, ribbonBlack, 'y', 16);
+  cylinder(ribbonAssembly, 0.065, 0.015, 5.39, 1.38, 0.28, ribbonRed, 'y', 16);
+  cylinder(ribbonAssembly, 0.065, 0.015, 5.39, 1.40, -0.45, ribbonBlack, 'y', 16);
+
+  // A fresh texture is deliberately drawn from scratch, never from the user's
+  // canvas. Rewinding a lesson removes its illustrative mark without saving it.
+  const tutorialCanvas = document.createElement('canvas');
+  tutorialCanvas.width = PAPER_WIDTH; tutorialCanvas.height = PAPER_HEIGHT;
+  const tutorialContext = tutorialCanvas.getContext('2d')!;
+  const tutorialTexture = new THREE.CanvasTexture(tutorialCanvas);
+  tutorialTexture.colorSpace = THREE.SRGBColorSpace;
+  tutorialTexture.anisotropy = paperTexture.anisotropy;
+  const tutorialPaperMaterial = paperMaterial.clone();
+  tutorialPaperMaterial.map = tutorialTexture;
+  let tutorialInk: TutorialFrame['ink'] | undefined;
+  function drawTutorialPaper(ink: TutorialFrame['ink']) {
+    if (ink === tutorialInk) return;
+    tutorialInk = ink;
+    tutorialContext.fillStyle = '#f7f2e4';
+    tutorialContext.fillRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT);
+    if (ink) {
+      tutorialContext.fillStyle = '#24271f';
+      tutorialContext.font = 'bold 33.333px "Courier New", Courier, monospace';
+      tutorialContext.textAlign = 'center'; tutorialContext.textBaseline = 'alphabetic';
+      tutorialContext.fillText(ink, PAPER_LEFT + (32 + 0.5) * LETTER_PITCH, PAPER_TOP);
+    }
+    tutorialTexture.needsUpdate = true;
+  }
+  drawTutorialPaper('');
+
+  const tutorialOverlay = document.createElement('div');
+  tutorialOverlay.className = 'tutorial-scene-labels';
+  tutorialOverlay.setAttribute('aria-hidden', 'true');
+  tutorialOverlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;display:none;z-index:2;';
+  const svgNamespace = 'http://www.w3.org/2000/svg';
+  const labelLeaders = document.createElementNS(svgNamespace, 'svg');
+  labelLeaders.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;';
+  tutorialOverlay.appendChild(labelLeaders);
+  container.appendChild(tutorialOverlay);
+  const tutorialDefinitions = [
+    { id: 'shell', name: '01  Shell & frame', group: shell, offset: [0, 0, 0], anchor: [-4.8, 0.8, 3.7], side: 0, slot: 2, focuses: [] },
+    { id: 'keys', name: '02  Keys & keylevers', group: keyboard, offset: [0, 0.4, 4.4], anchor: [0, 1.2, 3.2], side: 1, slot: 2, focuses: ['keys'] },
+    { id: 'typebars', name: '03  Typebar basket', group: basketAssembly, offset: [-0.8, 2.7, 0.8], anchor: [-1.6, 1.35, 0.5], side: 0, slot: 1, focuses: ['typebars', 'shift'] },
+    { id: 'ribbon', name: '04  Ribbon & spools', group: ribbonAssembly, offset: [-1.4, 5.1, -0.1], anchor: [-3.9, 2, -0.97], side: 0, slot: 0, focuses: ['ribbon'] },
+    { id: 'carriage', name: '05  Carriage & platen', group: carriageAssembly, offset: [0.2, 6.4, -3.4], anchor: [3.8, 2.5, -1.9], side: 1, slot: 0, focuses: ['return'] },
+    { id: 'escapement', name: '06  Escapement', group: escapementAssembly, offset: [6.1, 2.5, 0.1], anchor: [0.1, 1.15, -1.35], side: 1, slot: 1, focuses: ['escapement'] },
+  ];
+  const tutorialAssemblies = tutorialDefinitions.map(definition => {
+    definition.group.name = definition.name.slice(4);
+    const element = document.createElement('div');
+    element.className = 'tutorial-part-label';
+    element.dataset.tutorialPart = definition.id;
+    element.textContent = definition.name;
+    element.style.cssText = 'position:absolute;box-sizing:border-box;padding:6px 8px;border:1px solid #c8c4af;border-radius:5px;background:rgba(248,245,233,.94);color:#34473b;font:500 11px/1.25 system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 10px #263a2610;';
+    tutorialOverlay.appendChild(element);
+    const leader = document.createElementNS(svgNamespace, 'line');
+    leader.setAttribute('stroke-width', '1');
+    labelLeaders.appendChild(leader);
+    const originals: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[]; teaching: THREE.Material | THREE.Material[] }[] = [];
+    const materials = new Map<THREE.Material, THREE.Material>();
+    function teachingMaterial(material: THREE.Material) {
+      let clone = materials.get(material);
+      if (!clone) { clone = material.clone(); materials.set(material, clone); }
+      return clone;
+    }
+    definition.group.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const material = object.material;
+      originals.push({ mesh: object, material, teaching: Array.isArray(material) ? material.map(teachingMaterial) : teachingMaterial(material) });
+    });
+    return { ...definition, element, leader, originals, materials, offset: new THREE.Vector3(...definition.offset), anchor: new THREE.Vector3(...definition.anchor), bounds: new THREE.Box3().setFromObject(definition.group) };
+  });
+  // The resting fan's bounds do not include the raised slug at the common guide.
+  tutorialAssemblies[2].bounds.expandByPoint(impactPoint);
+  const guidePositions = new Float32Array(tutorialAssemblies.length * 6);
+  const guideGeometry = new THREE.BufferGeometry();
+  guideGeometry.setAttribute('position', new THREE.BufferAttribute(guidePositions, 3).setUsage(THREE.DynamicDrawUsage));
+  const guideMaterial = new THREE.LineBasicMaterial({ color: 0x9c956e, transparent: true, opacity: 0.36, depthTest: false, depthWrite: false });
+  const assemblyGuides = new THREE.LineSegments(guideGeometry, guideMaterial);
+  assemblyGuides.visible = false; assemblyGuides.frustumCulled = false;
+  scene.add(assemblyGuides);
+  const focusBoxes = [new THREE.BoxHelper(keyboard, 0xb68a35), new THREE.BoxHelper(basket, 0xb68a35)];
+  for (const helper of focusBoxes) {
+    helper.visible = false;
+    helper.material.depthTest = false;
+    helper.material.transparent = true;
+    helper.material.opacity = 0.8;
+    scene.add(helper);
+  }
+  const focusParts: Record<TutorialFocus, THREE.Object3D[]> = {
+    overview: [], keys: [keys.get('a')!.group, keys.get('a')!.lever],
+    typebars: [typebars.get('a')!.group], ribbon: [ribbonMeshes[0]],
+    escapement: [escapement, holdingDogs], shift: [keys.get('Shift')!.group, basket],
+    return: [returnLever, platen],
+  };
+  const tutorialDirections: Record<TutorialFocus, THREE.Vector3> = {
+    overview: new THREE.Vector3(9, 16, 22).normalize(),
+    keys: new THREE.Vector3(5, 17, 20).normalize(),
+    typebars: new THREE.Vector3(3, 17, 15).normalize(),
+    ribbon: new THREE.Vector3(5, 16, 19).normalize(),
+    escapement: new THREE.Vector3(7, 12, 20).normalize(),
+    shift: new THREE.Vector3(7, 15, 19).normalize(),
+    return: new THREE.Vector3(-12, 10, 19).normalize(),
+  };
+  const tutorialFocusCenters: Record<TutorialFocus, THREE.Vector3> = {
+    overview: new THREE.Vector3(0, 2.2, -0.8), keys: new THREE.Vector3(0, 1.1, 2.2),
+    typebars: new THREE.Vector3(0, 1.9, -0.1), ribbon: new THREE.Vector3(0, 2.2, -0.9),
+    escapement: new THREE.Vector3(0.6, 1.3, -1.1), shift: new THREE.Vector3(0, 1.5, 0.1),
+    return: new THREE.Vector3(-2.2, 2.5, -1.6),
+  };
+  let tutorial: TutorialFrame | null = null;
+  let explosion = 0;
+  let tutorialCameraManual = false;
+  const savedCamera = new THREE.Vector3();
+  const savedTarget = new THREE.Vector3();
+  const diagramBounds = new THREE.Box3();
+  const shiftedBounds = new THREE.Box3();
+  const diagramCenter = new THREE.Vector3();
+  const cameraRight = new THREE.Vector3();
+  const cameraUp = new THREE.Vector3();
+  const scratch = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  let stageWidth = 1, stageHeight = 1;
+  let cutaway = false;
 
   let mode: ViewMode = 'write';
   let disposed = false;
@@ -434,8 +584,108 @@ export function createStudio(
   let framedNarrow: boolean | undefined;
   const cameraGoal = new THREE.Vector3();
   const targetGoal = new THREE.Vector3();
+  function frameTutorialCamera(instant = false) {
+    if (!tutorial || tutorialCameraManual) return;
+    diagramBounds.makeEmpty();
+    for (const assembly of tutorialAssemblies) {
+      shiftedBounds.copy(assembly.bounds).translate(assembly.group.position);
+      if (assembly.group === carriageAssembly) shiftedBounds.translate(scratch.set(carriage.position.x, 0, 0));
+      diagramBounds.union(shiftedBounds);
+    }
+    diagramBounds.getCenter(diagramCenter);
+    targetGoal.copy(diagramCenter).lerp(tutorialFocusCenters[tutorial.focus], (1 - explosion) * 0.55);
+    const direction = tutorialDirections[tutorial.focus];
+    cameraRight.crossVectors(yAxis, direction).normalize();
+    cameraUp.crossVectors(direction, cameraRight).normalize();
+    const tanVertical = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+    const tanHorizontal = tanVertical * camera.aspect;
+    let distance = 0;
+    for (let corner = 0; corner < 8; corner++) {
+      scratch.set(corner & 1 ? diagramBounds.max.x : diagramBounds.min.x, corner & 2 ? diagramBounds.max.y : diagramBounds.min.y, corner & 4 ? diagramBounds.max.z : diagramBounds.min.z).sub(targetGoal);
+      const depth = scratch.dot(direction);
+      distance = Math.max(distance, Math.abs(scratch.dot(cameraRight)) / tanHorizontal + depth, Math.abs(scratch.dot(cameraUp)) / tanVertical + depth);
+    }
+    // Close lessons retain context but let the active mechanism fill the stage.
+    // The separated overview always fits, including the incoming paper tail.
+    const focusZoom = tutorial.focus === 'overview' ? 1 : THREE.MathUtils.lerp(stageWidth < 600 ? 0.88 : 0.78, 1, explosion);
+    cameraGoal.copy(direction).multiplyScalar(Math.max(12, distance * 1.08 * focusZoom)).add(targetGoal);
+    cameraMoving = true;
+    if (instant || tutorial.reducedMotion) {
+      camera.position.copy(cameraGoal); controls.target.copy(targetGoal);
+      cameraMoving = false; controls.update();
+    }
+  }
+  function updateTutorialAppearance() {
+    if (!tutorial) return;
+    for (const assembly of tutorialAssemblies) {
+      const active = tutorial.focus === 'overview' || assembly.focuses.includes(tutorial.focus);
+      const ghost = tutorial.focus === 'escapement' && !active && explosion < 0.25;
+      for (const [original, material] of assembly.materials) {
+        material.transparent = original.transparent || ghost;
+        material.opacity = original.opacity * (ghost ? 0.23 : 1);
+        material.depthWrite = original.depthWrite && !ghost;
+        if (material instanceof THREE.MeshStandardMaterial) {
+          material.emissive.setHex(active ? 0xc49d45 : 0x000000);
+          material.emissiveIntensity = active ? tutorial.focus === 'overview' ? 0.025 : 0.16 : 0;
+        }
+        material.needsUpdate = true;
+      }
+      assembly.element.dataset.active = String(active);
+      assembly.element.style.borderColor = active ? '#a88d49' : '#c8c4af';
+      assembly.element.style.background = active ? 'rgba(252,246,222,.96)' : 'rgba(248,245,233,.94)';
+      assembly.leader.setAttribute('stroke', active ? '#a18847' : '#929b8b');
+    }
+    const paperGhost = tutorial.focus === 'escapement' && explosion < 0.25;
+    tutorialPaperMaterial.transparent = paperGhost;
+    tutorialPaperMaterial.opacity = paperGhost ? 0.23 : 1;
+    tutorialPaperMaterial.depthWrite = !paperGhost;
+    tutorialPaperMaterial.needsUpdate = true;
+  }
+  function updateTutorialDiagram() {
+    if (!tutorial) return;
+    const compact = stageWidth < 600;
+    const labelWidth = compact ? 118 : 149;
+    const margin = compact ? 8 : 16;
+    const topInset = compact ? 40 : 60;
+    const bottomInset = compact ? 45 : 65;
+    const showAll = tutorial.focus === 'overview' || explosion > 0.35;
+    const positions = guideGeometry.attributes.position as THREE.BufferAttribute;
+    for (let index = 0; index < tutorialAssemblies.length; index++) {
+      const assembly = tutorialAssemblies[index];
+      scratch.copy(assembly.anchor);
+      if (assembly.group === carriageAssembly) scratch.x += carriage.position.x;
+      positions.setXYZ(index * 2, scratch.x, scratch.y, scratch.z);
+      scratch.add(assembly.group.position);
+      positions.setXYZ(index * 2 + 1, scratch.x, scratch.y, scratch.z);
+      projected.copy(scratch).project(camera);
+      const active = assembly.focuses.includes(tutorial.focus);
+      const visible = (showAll || active) && projected.z > -1 && projected.z < 1;
+      assembly.element.style.display = visible ? 'block' : 'none';
+      assembly.leader.style.display = visible ? '' : 'none';
+      if (!visible) continue;
+      const left = assembly.side === 0 ? margin : stageWidth - labelWidth - margin;
+      const top = topInset + assembly.slot * Math.max(0, (stageHeight - topInset - bottomInset - 30) / 2);
+      assembly.element.style.width = `${labelWidth}px`;
+      assembly.element.style.fontSize = compact ? '9px' : '11px';
+      assembly.element.style.transform = `translate(${left}px,${top}px)`;
+      assembly.leader.setAttribute('x1', String((projected.x + 1) * stageWidth / 2));
+      assembly.leader.setAttribute('y1', String((1 - projected.y) * stageHeight / 2));
+      assembly.leader.setAttribute('x2', String(assembly.side === 0 ? left + labelWidth : left));
+      assembly.leader.setAttribute('y2', String(top + 13));
+    }
+    positions.needsUpdate = true;
+    assemblyGuides.visible = explosion > 0.02;
+    guideMaterial.opacity = explosion * 0.32;
+    const parts = focusParts[tutorial.focus];
+    for (let index = 0; index < focusBoxes.length; index++) {
+      const helper = focusBoxes[index];
+      helper.visible = index < parts.length;
+      if (helper.visible) helper.setFromObject(parts[index]);
+    }
+  }
   function positionCamera(view: ViewMode, instant = false) {
     mode = view;
+    if (tutorial) return;
     // Match the CSS viewport breakpoint: the mobile stage deliberately extends
     // 30px beyond either edge, so its own width is not the visible width.
     const narrow = window.matchMedia('(max-width:650px)').matches;
@@ -467,14 +717,16 @@ export function createStudio(
   }
   function resize() {
     const width = Math.max(1, container.clientWidth), height = Math.max(1, container.clientHeight);
+    stageWidth = width; stageHeight = height;
     camera.aspect = width / height;
-    camera.fov = width / height < 0.85 ? 44 : 31;
+    camera.fov = tutorial ? width < 600 ? 42 : 36 : width / height < 0.85 ? 44 : 31;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     const narrow = window.matchMedia('(max-width:650px)').matches;
     // A crossing needs a new composition; ordinary same-layout resizing must
     // preserve an orbit or zoom the user deliberately chose.
-    if (framedNarrow !== narrow) positionCamera(mode, true);
+    if (tutorial) frameTutorialCamera(true);
+    else if (framedNarrow !== narrow) positionCamera(mode, true);
   }
   const observer = new ResizeObserver(resize);
   observer.observe(container);
@@ -500,10 +752,12 @@ export function createStudio(
   }
   function pointerDown(event: PointerEvent) {
     if (event.button !== 0) return;
+    if (tutorial) { pointerStart = undefined; return; }
     pointerStart = { x: event.clientX, y: event.clientY, id: event.pointerId, key: hitKey(event) };
     cameraMoving = false;
   }
   function pointerUp(event: PointerEvent) {
+    if (tutorial) return;
     if (!pointerStart || pointerStart.id !== event.pointerId) return;
     const start = pointerStart; pointerStart = undefined;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 7) return;
@@ -516,8 +770,8 @@ export function createStudio(
     container.focus({ preventScroll: true });
   }
   function pointerCancel() { pointerStart = undefined; releasePointerKey(); }
-  function pointerMove(event: PointerEvent) { renderer.domElement.style.cursor = hitKey(event) ? 'pointer' : pointerStart ? 'grabbing' : 'grab'; }
-  function orbitStart() { cameraMoving = false; }
+  function pointerMove(event: PointerEvent) { renderer.domElement.style.cursor = !tutorial && hitKey(event) ? 'pointer' : pointerStart ? 'grabbing' : 'grab'; }
+  function orbitStart() { cameraMoving = false; if (tutorial) tutorialCameraManual = true; }
   controls.addEventListener('start', orbitStart);
   renderer.domElement.addEventListener('pointerdown', pointerDown);
   renderer.domElement.addEventListener('pointermove', pointerMove);
@@ -526,56 +780,140 @@ export function createStudio(
   window.addEventListener('blur', pointerCancel);
 
   const frame = new THREE.Quaternion();
-  function update(state: MechanicalState, dt: number) {
-    if (disposed) return;
-    lastState = state;
+  const leverTip = new THREE.Vector3();
+  function applyMechanicalPose(state: MechanicalState, dt: number, instant = false) {
     // Canvas glyph centers sit at 200px + column*20px on an 8.5in / 1700px sheet.
     carriage.position.x = (32.5 - state.carriage) * 0.1;
     basket.position.y = -state.shift * 0.075;
     feedPaper(state.feed);
     liftRibbon(state.ribbonLift);
-    returnLever.rotation.y = state.returning ? -0.22 : THREE.MathUtils.damp(returnLever.rotation.y, 0, 15, dt);
+    returnLever.rotation.y = state.returning ? -0.22 : instant ? 0 : THREE.MathUtils.damp(returnLever.rotation.y, 0, 15, dt);
     escapement.rotation.z = -state.carriage * Math.PI * 2 / 20;
+    // The model releases the carriage only after contact. Driving the dogs from
+    // that travel preserves the order, including when the lesson is scrubbed.
+    const toothTravel = state.carriage - Math.floor(state.carriage);
+    const handoff = THREE.MathUtils.smoothstep(toothTravel, 0, 0.2);
+    dogs[0].rotation.z = state.returning ? -0.28 : -0.28 * (handoff - THREE.MathUtils.smoothstep(toothTravel, 0.55, 0.85));
+    dogs[1].rotation.z = state.returning ? 0.24 : 0.24 * (1 - handoff + THREE.MathUtils.smoothstep(toothTravel, 0.65, 0.9));
     // Ribbon travel is in meters; each spindle angle is cloth travel / winding radius.
     spools[0].rotation.y = state.ribbonTravel / 0.018;
     spools[1].rotation.y = state.ribbonTravel / 0.020;
     bellGroup.rotation.z = Math.sin(state.bell * 60) * Math.min(0.07, state.bell * 0.07);
     for (const [key, visual] of keys) {
       const stateBar = state.bars.find(bar => bar.key === key);
-      const held = stateBar?.pressed || (key.startsWith('Shift') && state.shifted) || pointerKey === key;
+      const held = stateBar?.pressed || (key.startsWith('Shift') && state.shifted) || (!tutorial && pointerKey === key);
       // A quick keydown/keyup can fall between display frames. The linkage still
       // carries the cap through its stroke while the driven typebar is moving.
       const depression = held ? 1 : THREE.MathUtils.clamp((stateBar?.angle ?? 0) * 3, 0, 1);
-      visual.group.position.y = THREE.MathUtils.damp(visual.group.position.y, visual.y - depression * 0.15, 35, dt);
+      const y = visual.y - depression * 0.15;
+      visual.group.position.y = instant ? y : THREE.MathUtils.damp(visual.group.position.y, y, 35, dt);
+      leverTip.copy(visual.group.position); leverTip.y -= 0.32;
+      scratch.copy(visual.pivot).sub(leverTip);
+      visual.lever.scale.y = scratch.length() / visual.leverLength;
+      visual.lever.position.copy(leverTip).add(visual.pivot).multiplyScalar(0.5);
+      visual.lever.quaternion.setFromUnitVectors(yAxis, scratch.normalize());
     }
-    for (const bar of state.bars) {
-      const visual = typebars.get(bar.key);
-      if (!visual) continue;
-      frame.slerpQuaternions(visual.rest, visual.hit, THREE.MathUtils.clamp(bar.angle, 0, 1));
+    for (const [key, visual] of typebars) {
+      const bar = state.bars.find(candidate => candidate.key === key);
+      frame.slerpQuaternions(visual.rest, visual.hit, THREE.MathUtils.clamp(bar?.angle ?? 0, 0, 1));
       visual.group.quaternion.copy(frame);
     }
+  }
+  function setTutorial(next: TutorialFrame | null) {
+    if (disposed) return;
+    const previous = tutorial;
+    if (next) {
+      if (!previous) {
+        releasePointerKey(); pointerStart = undefined;
+        savedCamera.copy(camera.position); savedTarget.copy(controls.target);
+        for (const cover of covers) cover.visible = false;
+        for (const assembly of tutorialAssemblies) for (const item of assembly.originals) item.mesh.material = item.teaching;
+        paper.material = tutorialPaperMaterial;
+        tutorialOverlay.style.display = 'block';
+        renderer.domElement.dataset.tutorial = 'true';
+        renderer.domElement.setAttribute('aria-label', 'Typewriter teaching diagram. Drag to orbit or scroll to zoom.');
+        controls.minDistance = 6; controls.maxDistance = 90;
+        tutorialCameraManual = false;
+        explosion = THREE.MathUtils.clamp(next.explosion, 0, 1);
+      }
+      tutorial = next;
+      controls.enableDamping = !next.reducedMotion;
+      drawTutorialPaper(next.ink);
+      if (!previous || previous.focus !== next.focus || Math.abs(previous.explosion - next.explosion) > 0.15) {
+        tutorialCameraManual = false;
+        updateTutorialAppearance();
+      }
+      if (!previous) {
+        applyMechanicalPose(next.state, 0, true);
+        for (const assembly of tutorialAssemblies) assembly.group.position.copy(assembly.offset).multiplyScalar(explosion);
+        resize();
+      }
+      return;
+    }
+    if (!previous) return;
+    tutorial = null;
+    explosion = 0;
+    for (const assembly of tutorialAssemblies) {
+      assembly.group.position.set(0, 0, 0);
+      for (const item of assembly.originals) item.mesh.material = item.material;
+    }
+    paper.material = paperMaterial;
+    for (const cover of covers) cover.visible = !cutaway;
+    for (const helper of focusBoxes) helper.visible = false;
+    assemblyGuides.visible = false;
+    tutorialOverlay.style.display = 'none';
+    delete renderer.domElement.dataset.tutorial;
+    renderer.domElement.setAttribute('aria-label', 'Interactive 3D typewriter. Drag to orbit, scroll to zoom, or click a key.');
+    controls.minDistance = 9; controls.maxDistance = 37;
+    // Flush gesture inertia before restoring the saved writing composition.
+    controls.enableDamping = false; controls.update(); controls.enableDamping = true;
+    camera.position.copy(savedCamera); controls.target.copy(savedTarget);
+    cameraGoal.copy(savedCamera); targetGoal.copy(savedTarget);
+    cameraMoving = false;
+    camera.fov = camera.aspect < 0.85 ? 44 : 31;
+    camera.updateProjectionMatrix();
+    if (lastState) applyMechanicalPose(lastState, 0, true);
+    controls.update();
+  }
+  function update(state: MechanicalState, dt: number) {
+    if (disposed) return;
+    lastState = state;
+    applyMechanicalPose(tutorial?.state ?? state, dt, tutorial !== null);
+    if (tutorial) {
+      const previouslyGhosted = explosion < 0.25;
+      const desiredExplosion = THREE.MathUtils.clamp(tutorial.explosion, 0, 1);
+      explosion = tutorial.reducedMotion ? desiredExplosion : THREE.MathUtils.damp(explosion, desiredExplosion, 7, dt);
+      for (const assembly of tutorialAssemblies) assembly.group.position.copy(assembly.offset).multiplyScalar(explosion);
+      if (previouslyGhosted !== (explosion < 0.25)) updateTutorialAppearance();
+      frameTutorialCamera();
+    }
     if (cameraMoving) {
-      const factor = 1 - Math.exp(-6 * dt);
+      const factor = tutorial?.reducedMotion ? 1 : 1 - Math.exp(-6 * dt);
       camera.position.lerp(cameraGoal, factor);
       controls.target.lerp(targetGoal, factor);
       if (camera.position.distanceTo(cameraGoal) < 0.015) cameraMoving = false;
     }
     controls.update();
+    if (tutorial) { scene.updateMatrixWorld(true); updateTutorialDiagram(); }
     renderer.render(scene, camera);
   }
 
   return {
     update,
+    setTutorial,
     setView(view) { positionCamera(view); },
     setCutaway(active) {
+      cutaway = active;
+      if (tutorial) return;
       for (const cover of covers) cover.visible = !active;
       if (active) positionCamera('inspect');
       else if (mode === 'inspect') positionCamera('write');
     },
     markPaperDirty() { paperTexture.needsUpdate = true; },
-    resetCamera() { positionCamera(mode); },
+    resetCamera() { if (tutorial) { tutorialCameraManual = false; frameTutorialCamera(); } else positionCamera(mode); },
     dispose() {
       if (disposed) return;
+      setTutorial(null);
       disposed = true;
       releasePointerKey();
       observer.disconnect();
@@ -600,6 +938,8 @@ export function createStudio(
       geometries.forEach(geometry => geometry.dispose());
       materials.forEach(material => material.dispose());
       textures.forEach(texture => texture.dispose());
+      for (const assembly of tutorialAssemblies) for (const material of assembly.materials.values()) material.dispose();
+      tutorialPaperMaterial.dispose(); tutorialTexture.dispose(); tutorialOverlay.remove();
       environmentMap.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
