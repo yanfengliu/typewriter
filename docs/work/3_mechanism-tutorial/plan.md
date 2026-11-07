@@ -19,10 +19,10 @@ Reuse the existing procedural model and renderer in a fullscreen native dialog. 
 
 ## Acceptance criteria
 
-- [ ] All seven chapters show readable explanations, correct mechanical sequencing and distinct component focus.
-- [ ] Exploded assembly animation, playback, scrubbing, orbit, separation and reassembly work through real controls.
-- [ ] The tour preserves existing ink and queued typing; keyboard and pointer input cannot write to the real sheet during the tutorial.
-- [ ] Desktop, narrow viewport, keyboard focus, Escape and reduced-motion behavior pass headless browser checks.
+- [x] All seven chapters show readable explanations, correct mechanical sequencing and distinct component focus.
+- [x] Exploded assembly animation, playback, scrubbing, orbit, separation and reassembly work through real controls.
+- [x] The tour preserves existing ink and queued typing; keyboard and pointer input cannot write to the real sheet during the tutorial.
+- [x] Desktop, narrow viewport, keyboard focus, Escape and reduced-motion behavior pass headless browser checks.
 - [ ] Tests, production build and independent review pass; deploy to Pages and verify the live tutorial; remove owned temporary resources.
 
 ## Implementation steps
@@ -33,4 +33,4 @@ Reuse the existing procedural model and renderer in a fullscreen native dialog. 
 
 ## Outcome
 
-Pending. Record the verified revision, checks and limitations at closure.
+Implemented at d08b49da6207d13767ad1f4c1ca00677a885d598 and repaired after independent review at 5dcc0dcf38ba85f0d57d34aeacf23a9a88528ba1. All 34 tests and the Pages build pass. Headless checks cover seven chapters, exploded labels, contact sequencing, playback, scrubbing, pointer and keyboard isolation, preservation of 42 queued keystrokes, paper-view restoration, mobile layout, reduced motion, source-guide focus and Escape. [Initial review](reviews/0_implementation.md) found a pending pointer release race plus two small dialog/camera issues; all three were repaired and browser checked. Scoped repair review and publication remain.
