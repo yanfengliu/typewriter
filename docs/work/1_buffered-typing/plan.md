@@ -19,9 +19,9 @@ Keep the raw mechanics independently testable; dispatch buffered input only when
 
 ## Acceptance criteria
 
-- [ ] Zero-delay and overlapping key bursts print every supported character once, in order, including repeated letters and spaces.
-- [ ] Shift, ribbon, force, returns, backspaces and feed actions retain their intended values and ordering.
-- [ ] Slow motion and margins retain pending input, and loading a sheet cannot silently cancel it.
+- [x] Zero-delay and overlapping key bursts print every supported character once, in order, including repeated letters and spaces.
+- [x] Shift, ribbon, force, returns, backspaces and feed actions retain their intended values and ordering.
+- [x] Slow motion and margins retain pending input, and loading a sheet cannot silently cancel it.
 - [ ] Browser keyboard tests, all automated tests, build and independent review pass; deliver to main and clean task resources.
 
 ## Implementation steps
@@ -31,4 +31,6 @@ Keep the raw mechanics independently testable; dispatch buffered input only when
 
 ## Outcome
 
-Pending. Record the verified revision, checks and limitations at closure.
+Implemented and verified at 64c65783ae1d7e9c36f5b30a2fbfdd30fee7e011. All 31 tests and the production build passed. Headless Chrome preserved every character in a 51-character zero-delay burst, ordered return/backspace overstrikes, slow-motion typing and clicked Shift. New-sheet protection and archival passed; the pending-input unload handler prevented a cancelable event. Inspected fixed, orbited and paper views at 1440 × 1000; zero browser errors or warnings. [Independent review](reviews/0_implementation.md) found no material issues. Delivery to main and resource cleanup remain.
+
+The mechanical model still controls contact and permanent ink. Overflow waits at a hard margin for Enter, Backspace or a fresh sheet; it does not auto-wrap. The queue is transient, with an unload warning rather than a persistent-format change. Native mobile keyboard support remains outside this change.
