@@ -1,0 +1,23 @@
+.mechanism-diagram { --md-ink:#302d28; --md-muted:#726c60; --md-line:#a49b89; --md-gold:#b57b27; --md-teal:#267b78; width:100%; height:100%; min-height:280px; display:flex; flex-direction:column; color:var(--md-ink); }
+.mechanism-diagram svg { display:block; width:100%; flex:1; min-height:0; overflow:visible; }
+.mechanism-diagram .md-metal { fill:#d6d4ca; stroke:var(--md-ink); stroke-width:3; }
+.mechanism-diagram .md-paper { fill:#fffdf5; stroke:#b7ad96; stroke-width:2; }
+.mechanism-diagram .md-lever { fill:none; stroke:var(--md-ink); stroke-width:9; stroke-linecap:round; stroke-linejoin:round; }
+.mechanism-diagram .md-link { fill:none; stroke:var(--md-gold); stroke-width:7; stroke-linecap:round; }
+.mechanism-diagram .md-pivot { fill:#f9f4e9; stroke:var(--md-ink); stroke-width:3; }
+.mechanism-diagram .md-motion { fill:none; stroke:var(--md-teal); stroke-width:4; stroke-linecap:round; }
+.mechanism-diagram .md-force { fill:none; stroke:var(--md-gold); stroke-width:4; stroke-linecap:round; }
+.mechanism-diagram .md-guide { fill:none; stroke:var(--md-line); stroke-width:2; stroke-dasharray:5 5; }
+.mechanism-diagram .md-label { fill:var(--md-ink); font:500 25px/1.2 system-ui,sans-serif; }
+.mechanism-diagram .md-small { fill:var(--md-muted); font:400 20px/1.2 system-ui,sans-serif; }
+.mechanism-diagram .md-glyph { fill:#22201c; font:700 43px Georgia,serif; }
+.mechanism-diagram .md-hit { fill:#e9c16f; stroke:var(--md-gold); stroke-width:2; }
+.mechanism-diagram .md-band { fill:#674950; stroke:#302d28; stroke-width:2; }
+.mechanism-diagram .md-active-dog { stroke:var(--md-teal); }
+.mechanism-diagram[data-narrow="true"] .md-label { font-size:20px; }
+.mechanism-diagram[data-narrow="true"] .md-small { font-size:17px; }
+.mechanism-legend { flex:none; display:flex; justify-content:center; flex-wrap:wrap; gap:8px 22px; padding:6px 12px; font:500 12px/1.5 system-ui,sans-serif; color:var(--md-muted); }
+.mechanism-legend span { display:inline-flex; align-items:center; gap:7px; }
+.mechanism-legend i { display:inline-block; width:18px; height:3px; background:var(--md-gold); }
+.mechanism-legend span:nth-child(2) i { background:var(--md-teal); }
+.mechanism-legend span:nth-child(3) i { background:#22201c; }
