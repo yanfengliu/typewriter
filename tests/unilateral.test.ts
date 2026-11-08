@@ -280,7 +280,7 @@ test('seven-coordinate full-SPD impact and sustained support match Cartesian gro
   }
   near(system.account.impactLoss, weights.reduce((s, m, i) => s + .5 * m * physicalV[i] ** 2, 0), 1e-10);
   near(system.account.residual, 0, 1e-10);
-  assert.throws(() => new UnilateralSystem(masses(Array(8).fill(1)), { q: zero(8), v: zero(8) }), /1–7/);
+  assert.throws(() => new UnilateralSystem(masses(Array(52).fill(1)), { q: zero(52), v: zero(52) }), /1–51/);
 });
 
 test('six-coordinate coupled inertia is supported and invalid physical state is rejected', () => {

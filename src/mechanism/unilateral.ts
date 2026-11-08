@@ -1,4 +1,4 @@
-/** Small reduced-coordinate, frictionless unilateral dynamics.
+/** Reduced-coordinate, frictionless unilateral dynamics.
  *
  * A gap is separation-positive. Contact generalized force is +J^T lambda,
  * lambda >= 0, and sustained contact satisfies J*a + Jdot*v + g_tt >= 0.
@@ -12,6 +12,8 @@
  * swept detector samples a cubic path eight times per bounded step, so it is
  * NOT a certificate against arbitrarily narrow or rapidly oscillating gaps.
  */
+import { monotoneQP } from './monotone-qp';
+import { scalarCrossing } from './scalar-crossing';
 
 export type CoordinateVector = readonly number[];
 export type MassMatrix = readonly CoordinateVector[];
@@ -27,6 +29,9 @@ export interface NormalContact {
 }
 export interface UnilateralDefinition {
   mass(q: CoordinateVector): MassMatrix;
+  /** Positive Christoffel contraction; subtracted from applied force. An
+   * analytic sparse provider avoids allocating a cubic derivative tensor. */
+  inertialForce?(q: CoordinateVector, v: CoordinateVector): CoordinateVector;
   /** derivatives[k][i][j] = partial M_ij / partial q_k. */
   massDerivatives?(q: CoordinateVector): readonly MassMatrix[];
   potential(q: CoordinateVector): number;
@@ -88,7 +93,8 @@ export interface FeatureGuard {
    * continuation through the zero. Every predicate is checked before ordinary
    * guard, contact or force evaluation. A failed trial is shortened, never used
    * as an accepted state or as a source of work/impulse. Protected advances and
-   * replacements require explicit massDerivatives, potentialGradient and every
+   * replacements require explicit inertialForce or massDerivatives,
+   * potentialGradient and every
    * contact's gradient, timeDerivative and accelerationBias. These providers
    * must evaluate their analytic values within the domain; automatic difference
    * stencils are not used under this contract. Guards are registered at advance
@@ -162,7 +168,6 @@ function solve(l: MassMatrix, b: CoordinateVector): Vector {
  * At most rank(M) independent active normals are required for a feasible cone. */
 function complementarity(a: MassMatrix, b: CoordinateVector, rank: number): Vector {
   const n = b.length;
-  if (n > 12) throw new Error('More than 12 simultaneous candidate contacts');
   if (!n) return [];
   const scale = a.map((row, i) => {
     if (!(row[i] > 0)) throw new Error('Contact has no dynamic normal direction');
@@ -186,6 +191,12 @@ function complementarity(a: MassMatrix, b: CoordinateVector, rank: number): Vect
   // first, with exactly the same positivity/complementarity checks, instead
   // of enumerating all of its smaller subsets on every force evaluation.
   if (n <= rank) examine(Array.from({ length: n }, (_, i) => i));
+  if (n > 12) {
+    if (answer) return answer;
+    const result = monotoneQP(a.map(row => [...row]), [...b], rank);
+    if (result.status !== 'solved') throw new Error('Certified incompatible contact cone');
+    return result.impulse;
+  }
   const choose = (start: number, left: number, indices: number[]) => {
     if (answer) return;
     if (!left) { examine(indices); return; }
@@ -210,7 +221,7 @@ export class UnilateralSystem {
 
   constructor(readonly definition: UnilateralDefinition, initial: UnilateralState, options: UnilateralOptions = {}) {
     this.n = initial.q.length;
-    if (this.n < 1 || this.n > 7) throw new Error('UnilateralSystem requires 1–7 dynamic coordinates');
+    if (this.n < 1 || this.n > 51) throw new Error('UnilateralSystem requires 1–51 dynamic coordinates');
     this.current = { q: vector(initial.q, this.n, 'coordinate'), v: vector(initial.v, this.n, 'velocity'), t: finite(initial.time ?? 0, 'time') };
     this.options = { coordinateScales: Array(this.n).fill(1), differenceStep: 1e-5, timeDifference: 1e-5, maxStep: 1 / 960,
       gapTolerance: 1e-9, velocityTolerance: 1e-8, accelerationTolerance: 1e-8, eventTimeTolerance: 1e-12, restitution: 0, maxEvents: 64, maxSubsteps: 20000, ...options };
@@ -257,6 +268,7 @@ export class UnilateralSystem {
     return finite((normalVelocity(1) - normalVelocity(-1)) / (2 * h), 'contact acceleration bias');
   }
   private inertialForce(q: CoordinateVector, v: CoordinateVector): Vector {
+    if (this.definition.inertialForce) return vector(this.definition.inertialForce(q, v), this.n, 'inertial force');
     const derivatives = this.definition.massDerivatives ? this.definition.massDerivatives(q) : q.map((_, k) => {
       const h = this.difference(q, k), a = [...q], b = [...q]; a[k] -= h; b[k] += h;
       const ma = this.matrix(a), mb = this.matrix(b); return ma.map((row, i) => row.map((x, j) => (mb[i][j] - x) / (2 * h)));
@@ -315,7 +327,7 @@ export class UnilateralSystem {
    * boundary/state/history is changed, when a protected contract is incomplete. */
   private requireDomainDerivatives(contacts: readonly NormalContact[]): void {
     const missing: string[] = [];
-    if (typeof this.definition.massDerivatives !== 'function') missing.push('massDerivatives');
+    if (typeof this.definition.massDerivatives !== 'function' && typeof this.definition.inertialForce !== 'function') missing.push('massDerivatives or inertialForce');
     if (typeof this.definition.potentialGradient !== 'function') missing.push('potentialGradient');
     for (const contact of contacts) for (const key of ['gradient', 'timeDerivative', 'accelerationBias'] as const)
       if (typeof contact[key] !== 'function') missing.push(`${contact.id}.${key}`);
@@ -537,9 +549,19 @@ export class UnilateralSystem {
               const lower = lo ? this.smooth(start, lo, force, active, guards).state : start;
               let upper = this.smooth(start, hi, force, active, guards);
               if ((lo > 0 && occurred(lower)) || !occurred(upper.state)) { invalid = true; break; }
-              for (let i = 0; i < 42; i++) {
-                const mid = (lo + hi) / 2, sample = this.smooth(start, mid, force, active, guards);
-                if (occurred(sample.state)) { hi = mid; upper = sample; } else lo = mid;
+              const scalar = (s: State) => crossing.kind === 'boundary' ? finite(guard.value(s.q, s.t), 'feature guard') : finite(contact.gap(s.q, s.t), 'gap');
+              if (crossing.kind !== 'release' && scalar(lower) > 0) {
+                const root = scalarCrossing(lo, hi, scalar(lower), scalar(upper.state), upper, duration => {
+                  const value = this.smooth(start, duration, force, active, guards);
+                  return { value, scalar: scalar(value.state) };
+                });
+                lo = root.lower; hi = root.upper; upper = root.value;
+              } else {
+                // Release is a Boolean active-set transition, not a scalar gap.
+                for (let i = 0; i < 42; i++) {
+                  const mid = (lo + hi) / 2, sample = this.smooth(start, mid, force, active, guards);
+                  if (occurred(sample.state)) { hi = mid; upper = sample; } else lo = mid;
+                }
               }
               roots.push({ trial: upper, time: hi, kind: crossing.kind, id });
             }
