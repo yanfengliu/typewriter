@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-07: **Reviewed unilateral contact solver** — added a seven-coordinate numerical kernel with nonnegative contact impulses, sustained support, full variable-mass terms, moving-boundary work and complete simultaneous release records. Analytic tests and independent repair review pass. This reusable milestone does not activate the unfinished connected typewriter; geometry, finite tooth-feature transitions and application/tutorial integration remain in progress.
+
 - 2026-11-07: **Connected mechanism foundation** — pinned the Royal standard segment-shift reference and added independently reviewed rigid-link and energy-integration primitives. Analytical and contact regressions close five numerical findings. Whole-machine integration continues in the tracked connected-mechanism work unit; this milestone does not activate a new public simulation.
 
 - 2026-11-07: **Joined the fleet census** — added the current generated fleet constitution and Claude instruction pointer so shared membership and drift checks cover this repository.
