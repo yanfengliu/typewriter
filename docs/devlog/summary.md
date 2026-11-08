@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-07: **Joined the fleet census** — added the current generated fleet constitution and Claude instruction pointer so shared membership and drift checks cover this repository.
+
 - 2026-11-07: **The tutorial teaches cause and effect** — replaced the default exploded chart with animated close-ups of linkage, ink contact, escapement, shift and line feed. A complete keystroke, selectable narrated moments, explanation questions and a short retelling connect each motion to its purpose. The 3D model remains available for locating parts; the real sheet and queued input remain isolated.
 
 - 2026-11-07: **The mechanism becomes an interactive 3D field guide** — added seven chapters with animated assembly separation, focused part labels, playback and scrubbing. The tour uses independent demonstration paper and pauses live input without discarding queued strokes. Reduced-motion and narrow-screen layouts are supported.
