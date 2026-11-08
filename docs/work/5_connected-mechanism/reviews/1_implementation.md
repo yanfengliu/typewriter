@@ -1,11 +1,16 @@
 # Numerical foundation implementation review
 
-Target: 1bbfcd219ddfeb082c5b2ddc05982236e2fbedf0
-Reviewer: independent Codex subagent, gpt-6-astra, xhigh
-Date: 2026-11-08 UTC
-Scope: new math/dynamics primitives and their tests; disconnected from the public application
+## Target
 
-## Authored reviewer report
+Exact revision 1bbfcd219ddfeb082c5b2ddc05982236e2fbedf0. Scope: new math/dynamics primitives and their tests; disconnected from the public application.
+
+## Reviewers and coverage
+
+Independent Codex subagent energy_review, gpt-6-astra, xhigh. Date: 2026-11-08 UTC. Read-only exact-revision numerical review in an isolated worktree, with bounded analytic probes and tests.
+
+## Reports
+
+### energy_review
 
 Reviewed **1bbfcd219ddfeb082c5b2ddc05982236e2fbedf0** independently. Three material numerical findings and one minor degeneracy finding remain on that revision. No application edits.
 
@@ -35,6 +40,14 @@ Outside-diff grounding: src/mechanics.ts:94–97 still launches the legacy impul
 
 The isolated review worktree and its two temporary probes were removed. No browser, server, or persistent process was launched. The implementation owner has accepted ENERGY-01 and ENERGY-02 and proposed repairs addressing ENERGY-03; those repairs require review at their committed revision.
 
-## Owner disposition and verification
+## Findings and disposition
+
+Accepted ENERGY-01, ENERGY-02, ENERGY-03 and ENERGY-04. Repairs committed at 5fc8494. Independent re-review is pending.
+
+## Verification
 
 Accepted all four findings. Added static support reactions, interior turning-point inspection before event bracketing, intra-cell Simpson integration with physical sqrt(M) velocity conversion, and explicit singularity diagnostics. Added all four reproductions, including the independent variable-mass exact solution at three timesteps. Eleven focused tests and all 47 repository tests pass. This establishes repaired behavior for those cases; an independent re-review of the repair commit is still required. No claim is made about the Royal action or rendered contact yet.
+
+## Round outcome
+
+Original revision has three material findings and one minor finding, with repairs and new regression tests at 5fc8494 awaiting re-review. M2 remains in progress. The first record failed the work-document heading schema; this documentation correction supplies the required sections without changing the authored report.
