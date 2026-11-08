@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-08: **Retained moving-hinge energy and exact caches** — added energy composition with full cross inertia and a carried-body helper for the corrected universal-bar-mounted lift. Independent review found and closed sparse state/provider validation defects; 104 integrated tests and the Pages build pass. The helpers remain unactivated in the public machine while assembly collisions, whole-cycle dynamics and real-time speed are resolved.
+
 - 2026-11-08: **Protected contact boundaries** — delivered independently reviewed compensated event history, explicit smooth-domain derivative preflight and absolute-deadline integration. All five finite-boundary review findings close; 89 integrated tests and the Pages build pass. The new physical typewriter and its finite escapement adapter remain unactivated while whole-cycle and performance gates are completed.
 
 - 2026-11-07: **Reviewed unilateral contact solver** — added a seven-coordinate numerical kernel with nonnegative contact impulses, sustained support, full variable-mass terms, moving-boundary work and complete simultaneous release records. Analytic tests and independent repair review pass. This reusable milestone does not activate the unfinished connected typewriter; geometry, finite tooth-feature transitions and application/tutorial integration remain in progress.
