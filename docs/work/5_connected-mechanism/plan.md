@@ -101,7 +101,7 @@ Target 60 fps on the available desktop and at least 30 fps on a named representa
 
 | Milestone | Status | Work and dependency | Exit evidence |
 |---|---|---|---|
-| M0 — Audit and plan | In progress | Audit current shortcuts, define architecture/gates, independently review this plan and store tracking | Pinned plan revision and review disposition; no functional changes |
+| M0 — Audit and plan | Verified | Audited current shortcuts and defined architecture/gates; independently reviewed plan and stored tracking | Plan d9a2b961; [independent plan review](reviews/0_plan.md); no functional changes |
 | M1 — Reference and specification | Planned | Pin one service-manual variant; trace its full mechanism; define geometry, contacts, parameters and uncertainty | Source/part matrix, annotated drawings, force-path diagram and accepted numerical targets |
 | M2 — One connected key | Planned | After M1, build one complete key/linkage/typebar action with real joints, springs, stops and a diagnostic 3D cutaway | Constant-length/closure tests, full-stroke sweeps, force/energy check and rendered proof at rest/half-stroke/contact/return |
 | M3 — Physical printing | Planned | After M2, add two-face slug, supported paper/platen and connected ribbon lift/feed | Geometric contact and registration tests; absent-ribbon/paper and blocked-bar tests; permanent overstrike proof |
@@ -133,7 +133,8 @@ Maintain a concise evidence log below and link each review round from this plan.
 ### Evidence log
 
 - 2026-11-07: Audited baseline 4a71edf27556f06b24a0706d1493cf9d72dc7a4a and rechecked primary source descriptions. Identified the source-variant timing issue and the queue's instantaneous press/release compatibility risk. Created this plan and progress board. No application code or behavior changed; implementation milestones remain planned.
+- 2026-11-08: Independent read-only review of plan d9a2b961efacdab92d48c4f8b429290f0a43a9c6 reported no material findings. Work-document structure, whitespace and relevant diff secret checks passed. M0 is Verified; M1–M7 remain Planned. Dates in the allocation/review record use UTC.
 
 ## Outcome
 
-Implementation pending. Planning deliverable and its review will be recorded here when saved to main. This status must remain incomplete until the connected mechanism is implemented, independently reviewed and verified live.
+Planning deliverable accepted at d9a2b961efacdab92d48c4f8b429290f0a43a9c6 with [independent review](reviews/0_plan.md). The plan and progress board are retained on main; no application behavior changed. Implementation remains pending. This work unit must remain incomplete until the connected mechanism is implemented, independently reviewed and verified live.

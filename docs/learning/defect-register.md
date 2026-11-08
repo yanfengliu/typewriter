@@ -1,5 +1,11 @@
 # Defect register
 
+## 2026-11-08 — The 3D mechanism follows poses instead of connected mechanics (unresolved)
+
+The owner required the 3D typewriter to follow the actual mechanism. Audit of 4a71edf confirmed that rendered keylevers change length, typebars follow interpolated orientations, escapement dogs follow carriage state, and ink comes from a normalized-angle threshold. Existing state-level tests do not establish rigid joint closure, geometric contact or a causal force path through the visible parts.
+
+The comprehensive repair plan and evidence-gated progress board are in docs/work/5_connected-mechanism/plan.md. Planned regression coverage includes joint/length invariants, geometric ink contact and registration, energy and timestep convergence, component-removal/blocking counterfactuals, and common solver states for real typing and the tutorial. The no-loss input buffer and permanent stored ink remain acceptance requirements. Planning is complete; the defect is not fixed and implementation tests have not yet been added.
+
 ## 2026-11-07 — The tutorial named parts without teaching the mechanism
 
 The owner reported that the exploded tour did not leave them able to teach someone else how a typewriter works. The opening animation only separated assemblies, while later chapters relied on broad 3D views and static paragraphs. Connections, contact and the distinction between finger energy and carriage-spring energy were not legible.
