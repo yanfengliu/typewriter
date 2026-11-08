@@ -17,7 +17,7 @@ export const hingePoint = (pivot: Vec3, axis: Vec3, arm: Vec3, angle: number): V
 export const unwrap = (angle: number, near: number) => angle + Math.round((near - angle) / (2 * Math.PI)) * 2 * Math.PI;
 
 export interface Hinge { pivot: Vec3; axis: Vec3; }
-export interface LinkClosure { angle: number; error: number; reachable: boolean; }
+export interface LinkClosure { angle: number; error: number; reachable: boolean; singular: boolean; }
 
 /** Exact rod-length constraint between an input point and a hinged follower.
  * Select the assembly branch nearest the prior valid angle, not a keyframed pose.
@@ -28,13 +28,18 @@ export function closeLink(input: Vec3, follower: Hinge, arm: Vec3, length: numbe
   const d = sub(input, add(follower.pivot, along));
   const a = dot(d, radial), b = dot(d, tangent);
   const amplitude = Math.hypot(a, b);
-  if (amplitude < 1e-15) return { angle: near, error: Math.abs(distance(input, hingePoint(follower.pivot, follower.axis, arm, near)) - length), reachable: false };
+  if (amplitude < 1e-15) {
+    const error = Math.abs(distance(input, hingePoint(follower.pivot, follower.axis, arm, near)) - length);
+    // A coaxial endpoint can satisfy the rod at every angle. It is reachable but
+    // underconstrained; an action solver must not mistake this for a drive ratio.
+    return { angle: near, error, reachable: error <= 1e-10, singular: true };
+  }
   const c = (dot(d, d) + dot(radial, radial) - length * length) / (2 * amplitude);
   const phase = Math.atan2(b, a), swing = Math.acos(clamp(c, -1, 1));
   const a0 = unwrap(phase + swing, near), a1 = unwrap(phase - swing, near);
   const angle = Math.abs(a0 - near) < Math.abs(a1 - near) ? a0 : a1;
   const error = Math.abs(distance(input, hingePoint(follower.pivot, follower.axis, arm, angle)) - length);
-  return { angle, error, reachable: Math.abs(c) <= 1 + 1e-10 };
+  return { angle, error, reachable: Math.abs(c) <= 1 + 1e-10, singular: Math.abs(Math.abs(c) - 1) < 1e-10 };
 }
 
 /** Locate a contact in a monotone approach interval supplied by the caller.

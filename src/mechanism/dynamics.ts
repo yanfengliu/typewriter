@@ -33,20 +33,37 @@ export class KineticMetric {
       if (i) this.distances[i] = this.distances[i - 1] + h / 6 * (rootMass(q - h) + 4 * rootMass(q - h / 2) + rootMass(q));
     }
   }
-  private interpolate(value: number, from: Float64Array, to: Float64Array): number {
+  private interval(value: number, from: Float64Array): number {
     let lo = 0, hi = from.length - 1;
-    // Linear continuation outside the table permits a swept event to be located
-    // at a stop. The caller must not accept a step outside its physical bounds.
     if (value <= from[0]) hi = 1;
     else if (value >= from[hi]) lo = hi - 1;
     else while (hi - lo > 1) { const mid = (lo + hi) >>> 1; if (from[mid] <= value) lo = mid; else hi = mid; }
-    return to[lo] + (to[hi] - to[lo]) * (value - from[lo]) / (from[hi] - from[lo]);
+    return lo;
   }
-  distance(q: number): number { return this.interpolate(q, this.coordinates, this.distances); }
-  coordinate(s: number): number { return this.interpolate(s, this.distances, this.coordinates); }
+  distance(q: number): number {
+    const edge = clamp(q, this.lower, this.upper);
+    if (edge !== q) return this.distance(edge) + (q - edge) * this.derivative(edge);
+    const i = this.interval(q, this.coordinates), a = this.coordinates[i], h = q - a;
+    return this.distances[i] + h / 6 * (this.derivative(a) + 4 * this.derivative(a + h / 2) + this.derivative(q));
+  }
+  coordinate(s: number): number {
+    const total = this.distances.at(-1)!;
+    if (s < 0) return this.lower + s / this.derivative(this.lower);
+    if (s > total) return this.upper + (s - total) / this.derivative(this.upper);
+    const i = this.interval(s, this.distances);
+    let lo = this.coordinates[i], hi = this.coordinates[i + 1];
+    let q = lo + (hi - lo) * (s - this.distances[i]) / (this.distances[i + 1] - this.distances[i]);
+    for (let j = 0; j < 12; j++) {
+      const error = this.distance(q) - s;
+      if (Math.abs(error) < 1e-15) return q;
+      if (error > 0) hi = q; else lo = q;
+      const next = q - error / this.derivative(q);
+      q = next > lo && next < hi ? next : (lo + hi) / 2;
+    }
+    return q;
+  }
   derivative(q: number): number {
-    const h = (this.upper - this.lower) * 1e-6;
-    return (this.distance(q + h) - this.distance(q - h)) / (2 * h);
+    return Math.sqrt(this.energy.mass(clamp(q, this.lower, this.upper)));
   }
 }
 
@@ -88,13 +105,38 @@ export class ConstrainedAction {
    */
   step(dt: number, fingerForce: number, stop = this.metric.upper, restitution = 0): ActionStep {
     if (!(dt > 0) || !Number.isFinite(dt + fingerForce)) throw new Error('Invalid force/time');
+    if (!(stop > this.metric.lower && stop <= this.metric.upper)) throw new Error('Contact must lie inside the action range');
     const from = this.q;
+    const h = (this.metric.upper - this.metric.lower) * 1e-6;
+    const a = clamp(this.q - h, this.metric.lower, this.metric.upper), b = clamp(this.q + h, this.metric.lower, this.metric.upper);
+    const energy = this.metric.energy;
+    const netForce = fingerForce * (energy.fingerTravel(b) - energy.fingerTravel(a)) / (b - a) -
+      (energy.potential(b) - energy.potential(a)) / (b - a);
+    // A support reaction prevents acceleration into an already active contact.
+    // It does zero work. This is also the resting solution of a zero-restitution
+    // collision under gravity or spring preload, not an endless bounce sequence.
+    if ((this.q === stop && this.speed === 0 && netForce >= 0) ||
+        (this.q === this.metric.lower && this.speed === 0 && netForce <= 0)) {
+      return { from, to: from, velocity: 0, stopped: true, impactEnergy: 0 };
+    }
     const trial = this.advance(dt, fingerForce, false);
     const lower = this.metric.lower;
-    let target: number | null = trial.q > stop ? stop : trial.q < lower ? lower : null;
+    let endTime = dt, furthest = trial.q;
+    // The end of a step can be back inside the permitted interval after crossing
+    // a stop. Inspect the turning point as well, and bracket the first approach.
+    if (this.speed * trial.speed < 0) {
+      let lo = 0, hi = dt;
+      for (let i = 0; i < 36; i++) {
+        const mid = (lo + hi) / 2;
+        if (this.advance(mid, fingerForce, false).speed * this.speed > 0) lo = mid; else hi = mid;
+      }
+      const turningTime = (lo + hi) / 2, turningQ = this.advance(turningTime, fingerForce, false).q;
+      if (turningQ > stop || turningQ < lower) { endTime = turningTime; furthest = turningQ; }
+    }
+    const target: number | null = furthest > stop ? stop : furthest < lower ? lower : null;
     let impactEnergy = 0;
     if (target !== null) {
-      let lo = 0, hi = dt;
+      let lo = 0, hi = endTime;
       for (let i = 0; i < 36; i++) {
         const mid = (lo + hi) / 2;
         const p = this.advance(mid, fingerForce, false).q;
@@ -109,7 +151,7 @@ export class ConstrainedAction {
       this.speed = -this.speed * e;
       // An impacting finger releases; it must not do fictitious work through the
       // platen. Remaining time is a passive rebound, or rest at the felt stop.
-      if (target !== lower && dt - elapsed > 1e-12) this.step(dt - elapsed, 0, stop, 0);
+      if (dt - elapsed > 1e-12) this.step(dt - elapsed, 0, stop, 0);
     } else this.advance(dt, fingerForce, true);
     this.account.residual = this.totalEnergy - this.account.initial - this.account.inputWork + this.account.dampingLoss + this.account.impactLoss;
     return { from, to: this.q, velocity: this.velocity, stopped: target !== null, impactEnergy };

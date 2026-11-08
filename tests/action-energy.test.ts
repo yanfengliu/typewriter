@@ -83,3 +83,60 @@ test('an unpowered resting action cannot launch itself', () => {
   assert.equal(action.account.inputWork, 0);
   assert.ok(Math.abs(action.account.residual) < 1e-10);
 });
+
+test('a sustained passive force into a contact is balanced by a support reaction', () => {
+  const metric = new KineticMetric({ mass: () => .001, potential: q => (q - .08) ** 2, fingerTravel: q => .08 * q }, 0, .15);
+  const action = new ConstrainedAction(metric, 0, .04);
+  for (let i = 0; i < 240; i++) action.step(1 / 240, 0, .04, 0);
+  assert.equal(action.q, .04);
+  assert.equal(action.kinetic, 0);
+  assert.equal(action.account.residual, 0);
+});
+
+test('a swept stop is detected even if the free path turns back inside it before step end', () => {
+  const metric = new KineticMetric({ mass: () => .001, potential: q => .064 * q, fingerTravel: q => .08 * q }, 0, .15);
+  const action = new ConstrainedAction(metric, 0, .03995);
+  action.setVelocity(.12);
+  const result = action.step(1 / 240, 0, .04, 0);
+  assert.ok(result.stopped);
+  // Independent constant-acceleration calculation: .5 M v² - F Δq.
+  const expectedLoss = .5 * .001 * .12 ** 2 - .064 * (.04 - .03995);
+  assert.ok(Math.abs(action.account.impactLoss - expectedLoss) < 1e-12);
+  assert.ok(action.q < .04);
+  assert.ok(Math.abs(action.account.residual) < 1e-10);
+});
+
+test('reported kinetic energy uses the physical inertia between metric sample nodes', () => {
+  const mass = (q: number) => .001 * (1 + 3 * Math.sin(4 * q) ** 2);
+  const metric = new KineticMetric({ mass, potential: q => q * q, fingerTravel: q => .08 * q }, 0, .15, 32);
+  const action = new ConstrainedAction(metric, 0, .0171234);
+  action.setVelocity(3.721);
+  for (let i = 0; i < 24; i++) {
+    action.step(1 / 2400, 0);
+    assert.ok(Math.abs(action.kinetic - .5 * mass(action.q) * action.velocity ** 2) < 1e-14);
+    assert.ok(Math.abs(metric.coordinate(metric.distance(action.q)) - action.q) < 1e-11);
+  }
+});
+
+test('free variable-mass motion follows its independent analytic solution', () => {
+  for (const dt of [.01, .001, .0001]) {
+    const mass = (q: number) => (1 + q) ** 2;
+    const metric = new KineticMetric({ mass, potential: () => 0, fingerTravel: q => q }, 0, 1);
+    const action = new ConstrainedAction(metric, 0, .001);
+    action.setVelocity(1);
+    for (let i = 0; i < Math.round(.1 / dt); i++) action.step(dt, 0);
+    const exact = Math.sqrt(1.001 ** 2 + 2 * 1.001 * .1) - 1;
+    assert.ok(Math.abs(action.q - exact) < 1e-11);
+    assert.ok(Math.abs(.5 * mass(action.q) * action.velocity ** 2 - .5 * 1.001 ** 2) < 1e-11);
+    assert.ok(Math.abs(action.account.residual) < 1e-11);
+  }
+});
+
+test('a coaxial rod distinguishes a singular all-angle assembly from an impossible one', () => {
+  const follower = { pivot: [0, 0, 0] as const, axis: [0, 0, 1] as const }, arm = [1, 0, 0] as const;
+  const valid = closeLink([0, 0, 1], follower, arm, Math.SQRT2, .7);
+  assert.equal(valid.reachable, true);
+  assert.equal(valid.singular, true);
+  assert.equal(valid.angle, .7);
+  assert.equal(closeLink([0, 0, 1], follower, arm, 1, .7).reachable, false);
+});
