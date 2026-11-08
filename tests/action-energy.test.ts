@@ -140,3 +140,21 @@ test('a coaxial rod distinguishes a singular all-angle assembly from an impossib
   assert.equal(valid.angle, .7);
   assert.equal(closeLink([0, 0, 1], follower, arm, 1, .7).reachable, false);
 });
+
+test('an incoming impact exactly at a step endpoint is resolved in that same step', () => {
+  const metric = new KineticMetric({ mass: () => 1, potential: () => 0, fingerTravel: q => q }, 0, 1);
+  const action = new ConstrainedAction(metric, 0);
+  action.setVelocity(1);
+  const result = action.step(1 / 240, 0, 1 / 240, 0);
+  assert.equal(result.stopped, true);
+  assert.equal(action.q, 1 / 240);
+  assert.equal(action.velocity, 0);
+  assert.ok(Math.abs(result.impactEnergy - .5) < 1e-12);
+  const lower = new ConstrainedAction(metric, 0, 1 / 240);
+  lower.setVelocity(-1);
+  const lowerResult = lower.step(1 / 240, 0);
+  assert.equal(lowerResult.stopped, true);
+  assert.equal(lower.q, 0);
+  assert.equal(lower.velocity, 0);
+  assert.ok(Math.abs(lowerResult.impactEnergy - .5) < 1e-12);
+});

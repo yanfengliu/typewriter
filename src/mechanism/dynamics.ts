@@ -133,7 +133,9 @@ export class ConstrainedAction {
       const turningTime = (lo + hi) / 2, turningQ = this.advance(turningTime, fingerForce, false).q;
       if (turningQ > stop || turningQ < lower) { endTime = turningTime; furthest = turningQ; }
     }
-    const target: number | null = furthest > stop ? stop : furthest < lower ? lower : null;
+    const reachesUpper = furthest > stop || (furthest === stop && trial.speed > 0);
+    const reachesLower = furthest < lower || (furthest === lower && trial.speed < 0);
+    const target: number | null = reachesUpper ? stop : reachesLower ? lower : null;
     let impactEnergy = 0;
     if (target !== null) {
       let lo = 0, hi = endTime;
@@ -148,7 +150,7 @@ export class ConstrainedAction {
       const e = target === lower ? 0 : clamp(restitution, 0, 1);
       impactEnergy = this.kinetic * (1 - e * e);
       this.account.impactLoss += impactEnergy;
-      this.speed = -this.speed * e;
+      this.speed = e === 0 ? 0 : -this.speed * e;
       // An impacting finger releases; it must not do fictitious work through the
       // platen. Remaining time is a passive rebound, or rest at the felt stop.
       if (dt - elapsed > 1e-12) this.step(dt - elapsed, 0, stop, 0);
