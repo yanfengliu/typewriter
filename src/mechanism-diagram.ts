@@ -114,6 +114,12 @@ export function createMechanismDiagram(host: HTMLElement) {
   const front = add(ig, 'g');
   add(front, 'rect', { x: 150, y: 355, width: 180, height: 64, class: 'md-paper' });
   add(front, 'text', { x: 240, y: 401, class: 'md-glyph', 'text-anchor': 'middle' }, 'a', 'impact-ink');
+  const fabric = add(svg.querySelector('defs')!, 'pattern', { id: `${id}-fabric`, width: 12, height: 18, patternUnits: 'userSpaceOnUse' }, '', 'ribbon-fabric');
+  add(fabric, 'rect', { width: 12, height: 18, fill: '#674950' });
+  add(fabric, 'path', { d: 'M0 0L12 18M-6 0L6 18', stroke: '#a8828a', 'stroke-width': 1 });
+  add(ig, 'rect', { x: 405, y: 345, width: 130, height: 18, fill: `url(#${id}-fabric)`, stroke: '#302d28', 'stroke-width': 2 });
+  add(ig, 'rect', { x: 437, y: 346, width: 5, height: 16, fill: '#302d28', opacity: 0 }, '', 'ribbon-used-patch');
+  add(ig, 'path', { d: 'M440 335V342', stroke: '#267b78', 'stroke-width': 3 });
   arrow(ig, 'M405 373H493', false, 'ribbon-feed');
   add(ig, 'path', { d: 'M383 340L330 355', class: 'md-guide' });
   label(impact.group, [160, 105, 'Metal face'], [89, 83, 'Metal face']);
@@ -257,6 +263,8 @@ export function createMechanismDiagram(host: HTMLElement) {
       attr('impact-force', { opacity: bar.pressed ? 1 : .25 });
       attr('ribbon-rise', { opacity: state.ribbonLift > 0 && !ink ? 1 : .25 });
       attr('ribbon-feed', { opacity: advance > 0 ? 1 : .18, 'stroke-dasharray': '10 6', 'stroke-dashoffset': -advance * 40 });
+      attr('ribbon-fabric', { patternTransform: `translate(${advance * 36} 0)` });
+      attr('ribbon-used-patch', { x: 437 + advance * 36, opacity: ink !== '' ? 1 : 0 });
       show('impact-hit', striking); show('impact-deposit', ink !== ''); show('impact-ink', ink !== '');
     } else if (selected === spacing) {
       attr('spacing-paper', { transform: `translate(${-advance * 60} 0)` });
@@ -277,7 +285,7 @@ export function createMechanismDiagram(host: HTMLElement) {
       const returned = bounded(1 - state.carriage / 42);
       attr('return-carriage', { transform: `translate(${returned * 180} 0)` });
       attr('return-line', { transform: `translate(0 ${-state.feed * 36})` });
-      attr('return-ratchet', { transform: `rotate(${-state.feed * 36} 487 326)` });
+      attr('return-ratchet', { transform: `rotate(${state.feed * 36} 487 326)` });
       attr('feed-marks', { transform: `translate(0 ${-state.feed * 36})` });
       attr('feed-pawl', { transform: `rotate(${-Math.sin(Math.PI * state.feed) * 12} 334 398)` });
       attr('feed-arrow', { opacity: state.feed > 0 && state.feed < 1 ? 1 : .3 });
