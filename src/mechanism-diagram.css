@@ -11,7 +11,7 @@
 .mechanism-diagram .md-label { fill:var(--md-ink); font:500 25px/1.2 system-ui,sans-serif; }
 .mechanism-diagram .md-small { fill:var(--md-muted); font:400 20px/1.2 system-ui,sans-serif; }
 .mechanism-diagram .md-glyph { fill:#22201c; font:700 43px Georgia,serif; }
-.mechanism-diagram .md-hit { fill:#e9c16f; stroke:var(--md-gold); stroke-width:2; }
+.mechanism-diagram .md-hit { fill:#e9c16f; fill-opacity:.15; stroke:var(--md-gold); stroke-width:2; }
 .mechanism-diagram .md-band { fill:#674950; stroke:#302d28; stroke-width:2; }
 .mechanism-diagram .md-active-dog { stroke:var(--md-teal); }
 .mechanism-diagram[data-narrow="true"] .md-label { font-size:20px; }

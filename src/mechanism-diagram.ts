@@ -111,7 +111,7 @@ export function createMechanismDiagram(host: HTMLElement) {
   arrow(ig, 'M115 161H230', true, 'impact-force');
   arrow(ig, 'M343 319V275', false, 'ribbon-rise');
   add(ig, 'path', { d: 'M372 118V159M397 83L382 98M520 86L521 122', class: 'md-guide' });
-  const front = add(ig, 'g');
+  const front = add(ig, 'g', {}, '', 'impact-front-paper');
   add(front, 'rect', { x: 150, y: 355, width: 180, height: 64, class: 'md-paper' });
   add(front, 'text', { x: 240, y: 401, class: 'md-glyph', 'text-anchor': 'middle' }, 'a', 'impact-ink');
   const fabric = add(svg.querySelector('defs')!, 'pattern', { id: `${id}-fabric`, width: 12, height: 18, patternUnits: 'userSpaceOnUse' }, '', 'ribbon-fabric');
@@ -123,8 +123,8 @@ export function createMechanismDiagram(host: HTMLElement) {
   arrow(ig, 'M405 373H493', false, 'ribbon-feed');
   add(ig, 'path', { d: 'M383 340L330 355', class: 'md-guide' });
   label(impact.group, [160, 105, 'Metal face'], [89, 83, 'Metal face']);
-  label(impact.group, [338, 70, 'Ribbon'], [205, 45, 'Ribbon']);
-  label(impact.group, [409, 66, 'Paper'], [255, 71, 'Paper']);
+  label(impact.group, [324, 70, 'Ribbon'], [205, 45, 'Ribbon']);
+  label(impact.group, [425, 43, 'Paper'], [255, 71, 'Paper']);
   label(impact.group, [531, 72, 'Rubber'], [334, 76, 'Rubber']);
   label(impact.group, [533, 104, 'platen'], [334, 101, 'platen']);
   label(impact.group, [240, 442, 'Ink on the front'], [150, 296, 'Ink on paper'], true);
@@ -227,9 +227,11 @@ export function createMechanismDiagram(host: HTMLElement) {
     const advance = bounded(state.carriage - 32);
     const contact = focus === 'shift' ? .66 : .46;
     const striking = ink !== '' && p < contact + .06;
-    const selected = focus === 'overview' || focus === 'keys' ? action : focus === 'typebars' || focus === 'ribbon' ? impact : focus === 'escapement' ? spacing : focus === 'shift' ? shift : returning;
+    // The opening follows the action into two close-ups: contact, then metering.
+    // An overview must show the cause of spacing, not just a moving paper inset.
+    const selected = focus === 'overview' ? p < .46 || p >= .8 ? action : p < .52 ? impact : spacing : focus === 'keys' ? action : focus === 'typebars' || focus === 'ribbon' ? impact : focus === 'escapement' ? spacing : focus === 'shift' ? shift : returning;
     for (const item of [action, impact, spacing, shift, returning]) item.group.setAttribute('display', item === selected ? '' : 'none');
-    title.textContent = focus === 'overview' || focus === 'keys' ? 'A key lever pulls a link, swinging one typebar into the print point' : focus === 'typebars' || focus === 'ribbon' ? 'The metal face presses inked ribbon against paper backed by the platen' : focus === 'escapement' ? 'A spring pulls the carriage left; the escapement releases exactly one space' : focus === 'shift' ? 'Lowering the basket aligns the upper character face with the fixed print line' : 'The return lever moves the carriage right and turns the platen to feed paper upward';
+    title.textContent = selected === action ? 'A key lever pulls a link, swinging one typebar into the print point' : selected === impact ? 'The metal face presses inked ribbon against paper backed by the platen' : selected === spacing ? 'A spring pulls the carriage left; the escapement releases exactly one space' : selected === shift ? 'Lowering the basket aligns the upper character face with the fixed print line' : 'The return lever moves the carriage right and turns the platen to feed paper upward';
     description.textContent = `${state.phase}. Gold: force. Teal: movement. Black: permanent ink. Connections and clearances are simplified for teaching.`;
 
     if (selected === action) {
@@ -260,6 +262,7 @@ export function createMechanismDiagram(host: HTMLElement) {
     } else if (selected === impact) {
       attr('impact-slug', { transform: `translate(${180 + 140 * a} 0)` });
       attr('impact-ribbon', { transform: `translate(0 ${90 * (1 - state.ribbonLift)})` });
+      attr('impact-front-paper', { transform: `translate(${-45 * advance} 0)` });
       attr('impact-force', { opacity: bar.pressed ? 1 : .25 });
       attr('ribbon-rise', { opacity: state.ribbonLift > 0 && !ink ? 1 : .25 });
       attr('ribbon-feed', { opacity: advance > 0 ? 1 : .18, 'stroke-dasharray': '10 6', 'stroke-dashoffset': -advance * 40 });
