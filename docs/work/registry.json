@@ -20,6 +20,10 @@
     {
       "id": 4,
       "theme": "causal-tutorial"
+    },
+    {
+      "id": 5,
+      "theme": "connected-mechanism"
     }
   ]
 }
