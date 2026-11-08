@@ -1,6 +1,6 @@
 # Rebuild the typewriter as a connected mechanical simulation
 
-Status: planned
+Status: active
 Owner: Codex
 Created: 2026-11-08
 Updated: 2026-11-08
@@ -102,8 +102,8 @@ Target 60 fps on the available desktop and at least 30 fps on a named representa
 | Milestone | Status | Work and dependency | Exit evidence |
 |---|---|---|---|
 | M0 — Audit and plan | Verified | Audited current shortcuts and defined architecture/gates; independently reviewed plan and stored tracking | Plan d9a2b961; [independent plan review](reviews/0_plan.md); no functional changes |
-| M1 — Reference and specification | Planned | Pin one service-manual variant; trace its full mechanism; define geometry, contacts, parameters and uncertainty | Source/part matrix, annotated drawings, force-path diagram and accepted numerical targets |
-| M2 — One connected key | Planned | After M1, build one complete key/linkage/typebar action with real joints, springs, stops and a diagnostic 3D cutaway | Constant-length/closure tests, full-stroke sweeps, force/energy check and rendered proof at rest/half-stroke/contact/return |
+| M1 — Reference and specification | Verified | Royal standard segment-shift pica family; documented topology, clearances, clutches and sequence; unknown dimensions explicitly fitted | [Source specification](design.md), integrated at 8ba83ef; scanned manual visually inspected |
+| M2 — One connected key | In progress | Fixed-length geometry and shift closure owned by linkage_geometry; root owns energy/work integration and acceptance | Six preliminary math/energy checks pass; complete connected stroke and rendered proof still pending |
 | M3 — Physical printing | Planned | After M2, add two-face slug, supported paper/platen and connected ribbon lift/feed | Geometric contact and registration tests; absent-ribbon/paper and blocked-bar tests; permanent overstrike proof |
 | M4 — Carriage and escapement | Planned | After M2/M3, connect universal-bar trip, mainspring, drawband, rack, pinion, wheel and dogs | Reference-correct event trace, one-tooth arrest, locked-dog/removed-spring tests, spacing and energy accounting |
 | M5 — Whole machine and operator | Planned | After M4, extend to every key and shifted face; add finite buffered actuation and all controls | Full keyboard alignment/collision sweep, shifted punctuation and long-burst parity, control/margin/jam recovery and storage regressions |
@@ -115,6 +115,8 @@ Root owns the shared architecture, interfaces, acceptance and integration. Deleg
 ### Progress update rules
 
 Use Planned, In progress, Verified or Blocked for milestone rows. Verified requires inspected evidence, an exact revision and passing relevant checks; writing code or passing a build is insufficient. Update this board at milestone boundaries and whenever a material blocker or scope decision changes it. During active work, user updates say what was verified, what is being worked on next, and the specific remaining uncertainty. Do not invent a percentage complete or a delivery time before the M2/M4 solver risk is measured.
+
+For every deliverable, explicitly record what it proves and what it does not prove yet, in both the user update and the evidence log. Keep geometric, dynamical, rendered, input/persistence, and real-device performance evidence distinct.
 
 Maintain a concise evidence log below and link each review round from this plan. Raw logs/screenshots remain ignored; retain selected evidence deliberately. A blocked item names the failed check, alternatives already tried, its owner and next action. Preserve original findings and fixes rather than rewriting earlier reviews. Do not mark the full work unit complete until M7 passes.
 
@@ -134,7 +136,9 @@ Maintain a concise evidence log below and link each review round from this plan.
 
 - 2026-11-07: Audited baseline 4a71edf27556f06b24a0706d1493cf9d72dc7a4a and rechecked primary source descriptions. Identified the source-variant timing issue and the queue's instantaneous press/release compatibility risk. Created this plan and progress board. No application code or behavior changed; implementation milestones remain planned.
 - 2026-11-08: Independent read-only review of plan d9a2b961efacdab92d48c4f8b429290f0a43a9c6 reported no material findings. Work-document structure, whitespace and relevant diff secret checks passed. M0 is Verified; M1–M7 remain Planned. Dates in the allocation/review record use UTC.
+- 2026-11-07: M1 source specification integrated at 8ba83ef from worker 2ada8ed2. Proves the documented Royal topology, precontact dog-to-roll transfer, barrel-driven ribbon transport, one-way return clutches and shift-slot sequence. Does not prove reconstructed dimensions, closure, numerical dynamics or rendered/deployed behavior. The new key-action prototype is isolated from the public application.
+- 2026-11-07: M2 preliminary deliverable adds a reduced-coordinate, discrete-work integrator and exact fixed-length rod closure. Six focused tests check unreachable geometry, rigid distances, analytic oscillator convergence, work/loss accounting with variable inertia, blocked travel, and an unpowered resting action. Proves those numerical primitives on independent analytical/test systems; does not yet prove the Royal linkage, printing, escapement, scene, input preservation or browser performance. Geometry fitting and complete-key verification remain in progress.
 
 ## Outcome
 
-Planning deliverable accepted at d9a2b961efacdab92d48c4f8b429290f0a43a9c6 with [independent review](reviews/0_plan.md). The plan and progress board are retained on main; no application behavior changed. Implementation remains pending. This work unit must remain incomplete until the connected mechanism is implemented, independently reviewed and verified live.
+Planning deliverable accepted at d9a2b961efacdab92d48c4f8b429290f0a43a9c6 with [independent review](reviews/0_plan.md). M1 research is complete and M2 implementation is active in codex/connected-mechanism. New numerical modules are not yet connected to the public application. This work unit remains incomplete until the connected mechanism is implemented, independently reviewed and verified live.
