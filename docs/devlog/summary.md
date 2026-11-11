@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-11: **Preserved unfinished rebuild for a clean restart** — saved six WIP checkpoints and17 remote archive refs at the owner's request. The connected rebuild still has five failing integration checks; no failed implementation was activated. Prepared an empty fable_5_2 branch, with the existing main application retained.
+
 - 2026-11-08: **Pressure-based printing foundation** — delivered the independently reviewed passive ribbon/paper/platen response and bounded pressure-exposure accumulator, including atomic rejection of invalid samples. All 121 clean integration tests and the Pages build pass. Physical pressure histories, ink placement and whole-machine activation remain unfinished.
 
 - 2026-11-08: **Retained moving-hinge energy and exact caches** — added energy composition with full cross inertia and a carried-body helper for the corrected universal-bar-mounted lift. Independent review found and closed sparse state/provider validation defects; 104 integrated tests and the Pages build pass. The helpers remain unactivated in the public machine while assembly collisions, whole-cycle dynamics and real-time speed are resolved.

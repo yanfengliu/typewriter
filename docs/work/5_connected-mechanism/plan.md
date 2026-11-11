@@ -1,9 +1,9 @@
 # Rebuild the typewriter as a connected mechanical simulation
 
-Status: blocked
+Status: cancelled
 Owner: Codex
 Created: 2026-11-08
-Updated: 2026-11-08
+Updated: 2026-11-11
 
 ## Problem and outcome
 
@@ -110,7 +110,7 @@ Target 60 fps on the available desktop and at least 30 fps on a named representa
 | M6 — Shared tutorial | In progress | Immutable recorder/narrative contract implemented at 44e3293 and independently accepted in review 8; integration awaits stable M5 events | 16 focused tests plus eight independent groups pass; actual whole-machine event completeness, UI and teaching checks remain |
 | M7 — Verification and delivery | In progress | Energy composition, carried-body helper and printing-material/exposure module delivered on main/origin 4483e1e; whole physical mechanism remains unactivated | 121 tests, Pages run 42522900268 and live artifact identity pass; fresh root gate passes 298/303 with the same five integration failures |
 
-Current work owners: root owns integration, source specification, acceptance and delivery. geometry_finish is preserving the terminal attempt8 evidence; no further geometry queries or candidate repairs are authorized after the owner's three-attempt extension. The frozen graph's1-key start has three exits, all blocked by conservative projected keep-outs; this does not establish actual three-dimensional collision or impossibility. The preliminary135-port/13-bank-scene and120-common-state envelope passes retain their limited scope. Fresh support-strategy reviewers completed review34 and cleaned their worktrees; the printing-feature worker stopped at an incomplete departure-proof contract and cleaned its worktree without a numerical run. Rod route10 remains frozen under its separately exhausted repair budget. Root's latest full gate remains298/303; the corrected6.731 mm fixture rerun preserves both focused failures. Physical activation, full stroke, pressure integration, real-time performance, shared tutorial and mobile verification remain blocked or unfinished. The goal tool reports usageLimited; no completion or successful rebuild is claimed.
+Current disposition: the owner cleared the goal and on2026-11-11 requested preservation of existing work and an empty fable_5_2 branch. This rebuild is closed unfinished; no repair, geometry comparison, public activation or continuation is authorized by this closeout. Six dirty task worktrees have explicit WIP checkpoint commits, and all17 task worktree heads are preserved on remote codex/archive-20261111/* branches. The complete rebuild did not pass acceptance. Exact checkpoint identities and fresh verification are recorded below.
 
 Root owns the shared architecture, interfaces, acceptance and integration. Delegate only bounded independent work after the mechanism definition is agreed, for example reference extraction, scene construction from frozen geometry, or independent review. Keep tightly coupled solver/geometry work with one owner until M2 passes. Retain all implementation and review history in this work unit; substantial milestones may merge separately, but incomplete mechanisms must stay out of the public default mode until their acceptance gates pass.
 
@@ -333,3 +333,30 @@ Recoverable integration remains on codex/connected-mechanism at baseb0e5175fa08f
 
 
 The exact [attempt8 author report](snapshots/attempt8-author-report.md), SHA-256FA2396BCC40DA1A72A228D90370A94C6BD3A833A01807871210B013EA810CF91, is preserved with all stated limits. Completion manifest DC7206F8510CE09FAFEF312C00E2D5971A1EA05D6D316BE2E3133BD2BB65F64D includes the root graph-cut check and all retained execution evidence; root verified every listed file hash and size. The initial unrun port-check draft was amended in place: its hash survives but its full original source was not separately retained. All executed-v2 and later code is preserved. This retention limitation is explicit; no geometry ran under the unretained draft.
+
+
+### Owner-directed preservation and empty restart, 2026-11-11
+
+The owner explicitly requested committing the current work after the failed integration status was reported, then clarified that fable_5_2 should be an empty branch. The six WIP commits preserve the current files despite known test failures; they are not accepted release commits and are not merged into the deployed runtime. No test assertion, geometry, numerical tolerance or application behavior was repaired during preservation. All six Pages builds pass. Current source/test/document files were size-checked and scanned for secret patterns before staging; staged whitespace checks pass. These checks prove preservation and reported build/test status, not completion of the physical simulation.
+
+| Preserved worktree | Remote archive branch | Exact commit | Fresh verification |
+|---|---|---|---|
+| auxiliary-linkage | codex/archive-20261111/auxiliary-linkage | 97549c281a77169e26fa59fb6c406824ab5f4af9 | Existing committed head; no code changed or gates rerun |
+| auxiliary-timing | codex/archive-20261111/auxiliary-timing | 7e83bf62324928d80f12ca6cab634592e0482c28 | 128/129 tests pass; 1 fail; build passes |
+| bank-solver-performance | codex/archive-20261111/bank-solver-performance | b0e5175fa08f93a09e3cdd1f5df43b5e3c5f864c | Existing committed head; no code changed or gates rerun |
+| connected-mechanism | codex/archive-20261111/connected-mechanism | ce7d18f2f780fa583d6b166264b0c15f5303bec7 | 298/303 tests pass; 5 fail; build passes |
+| connected-scene | codex/archive-20261111/connected-scene | 7801c94c685a5d3e0351b9d6acb71d8162a1877e | 190/199 tests pass; 9 fail; build passes |
+| energy-curve | codex/archive-20261111/energy-curve | eace67a052ed683daec5302e63e748a05902e7ac | Existing committed head; no code changed or gates rerun |
+| escapement-solver | codex/archive-20261111/escapement-solver | 86120dd82ed048685cb4c85421766729994abff8 | Existing committed head; no code changed or gates rerun |
+| linkage-geometry | codex/archive-20261111/linkage-geometry | a7d1c9489cf1de03f2a2c63e2118abe8eb695be9 | 42/42 tests pass; 0 fail; build passes |
+| mechanism-clearance | codex/archive-20261111/mechanism-clearance | 99c7527e6b3768e369f6d2457fccde6959abfa4e | Existing committed head; no code changed or gates rerun |
+| mechanism-reference | codex/archive-20261111/mechanism-reference | 2ada8ed2e230015729b3b7045e680e7de0dce421 | Existing committed head; no code changed or gates rerun |
+| mechanism-visual | codex/archive-20261111/mechanism-visual | bb31dc44432a1628f6b13fc0308ca2e93381591e | 56/56 tests pass; 0 fail; build passes |
+| operating-controls | codex/archive-20261111/operating-controls | fe25f167fe54e4a263e043a2595c51c52e6511a4 | Existing committed head; no code changed or gates rerun |
+| shift-feed-controls | codex/archive-20261111/shift-feed-controls | 2b8111b15a4a92121bb2b0f936549ffb5757b7fe | Existing committed head; no code changed or gates rerun |
+| source-geometry | codex/archive-20261111/source-geometry | 745f7bb668cbbecc71f7691bb8c28f2d9213e707 | 157/159 tests pass; 2 fail; build passes |
+| spring-mount-source | codex/archive-20261111/spring-mount-source | b0e5175fa08f93a09e3cdd1f5df43b5e3c5f864c | Existing committed head; no code changed or gates rerun |
+| unilateral-solver | codex/archive-20261111/unilateral-solver | fb156175744fc3ed1405aa30627026c04c899290 | Existing committed head; no code changed or gates rerun |
+| universal-routing | codex/archive-20261111/universal-routing | 1b2041321f3b0cb60e288c0598e813e3da34c8f0 | Existing committed head; no code changed or gates rerun |
+
+All17 remote refs were fetched by ls-remote and matched their local exact commit IDs after an atomic push. The archival branches do not trigger the main-only Pages workflow. Raw outputs, captures, downloaded reference material and ignored experimental artifacts remain local in their original output/worktree directories and are not falsely described as Git-tracked. No old worktree or evidence directory is deleted. Local before/after inventories, gate logs and checkpoint records remain in output/closeout-20261111. The fresh branch is to have one empty root commit, no tracked files and no inherited history; main retains the previously deployed application and this closeout record.
