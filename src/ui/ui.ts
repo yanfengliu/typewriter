@@ -165,8 +165,11 @@ export class UI implements TourHost {
     const scopeTg = toggle('Instruments', false, (v) => { this.scope.el.hidden = !v; document.body.classList.toggle('with-scope', v); }, 'Chart the last keystroke and the energy ledger');
     const forceTg = this.forceTg = toggle('Forces', false, (v) => { this.forces.enabled = v; this.forceLegend.hidden = !v; }, 'Draw the forces the solver computes: finger, links, impact, spring');
     const shots: Array<[string, string]> = [['typist', 'Typist'], ['side', 'Side'], ['top', 'Top'], ['rear', 'Rear'], ['linkage', 'Linkage'], ['print', 'Print point'], ['escapement', 'Escapement'], ['drum', 'Spring']];
-    const right = h('aside', { class: 'panel look', 'aria-label': 'Look inside' },
-      h('h3', {}, 'Look inside'),
+    // On a small window the panel starts folded so the machine is not hidden behind it.
+    const fold = h('button', { class: 'fold', type: 'button', 'aria-expanded': 'true', onclick: () => setFolded(!right.classList.contains('folded')) }, 'Look inside');
+    const setFolded = (v: boolean) => { right.classList.toggle('folded', v); fold.setAttribute('aria-expanded', String(!v)); };
+    const right: HTMLElement = h('aside', { class: 'panel look', 'aria-label': 'Look inside' },
+      fold,
       h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'Body'), this.shellSeg.el),
       h('div', { class: 'lbl' }, 'Focus on'), focusRow,
       this.explodeSl.row, slice.row,
@@ -189,6 +192,7 @@ export class UI implements TourHost {
         h('button', { class: 'btn', onclick: () => { app.typist.clear(); app.tw.newSheet(); this.replay.reset(); }, title: 'Put in a fresh sheet of paper' }, 'New sheet')),
       this.scrubRow, this.status,
     );
+    if (window.innerWidth < 1100) setFolded(true);
     this.root.append(top, this.tour.panel, this.infoCard, right, this.scope.el, bottom, this.labelLayer, this.tooltip, this.toast, this.transcript);
     // Clicking a control must not steal the keyboard from the typewriter.
     this.root.addEventListener('pointerup', () => window.setTimeout(() => { const a = document.activeElement as HTMLElement | null; if (a && (a.tagName === 'BUTTON' || a.tagName === 'INPUT')) a.blur(); }, 0));
