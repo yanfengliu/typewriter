@@ -330,7 +330,7 @@ export class UI implements TourHost {
       card.append(s.row, h('p', { class: 'hint' }, 'Drag to push this key down by hand. Go slowly and the type only kisses the paper: without momentum it leaves a faint ghost at most. The carriage waits until you let the key up.'),
         h('button', { class: 'btn', onclick: () => { s.set(0); if (this.slow) { this.app.tw.keyUp(this.slow); this.slow = null; } } }, 'Let go'));
     }
-    card.append(h('button', { class: 'btn', onclick: () => { const f = FOCUS.find(([, set]) => set?.includes(p.sys)); this.setFocus(f ? f[1] : null); if (this.modes.shell === 'solid') { this.modes.shell = 'glass'; this.shellSeg.set('glass'); } } }, 'Focus on its mechanism'));
+    card.append(h('button', { class: 'btn', onclick: () => { const f = FOCUS.find(([, set]) => set?.[0] === p.sys) ?? FOCUS.find(([, set]) => set?.includes(p.sys)); this.setFocus(f ? f[1] : null); if (this.modes.shell === 'solid') { this.modes.shell = 'glass'; this.shellSeg.set('glass'); } } }, 'Focus on its mechanism'));
   }
 
   private say(text: string): void {
