@@ -2,7 +2,7 @@
 // and the carriage, bell, margins and line feed behave like the real mechanism.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHAR_PITCH, LOCK_ANGLE, LOCK_ENGAGE, MARGIN, UBAR_PICKUP } from '../src/sim/layout';
+import { CHAR_PITCH, ESC, LOCK_ANGLE, LOCK_ENGAGE, MARGIN, TRAVEL, TRIP_LOCK, UBAR_PICKUP } from '../src/sim/layout';
 import { SPEC } from '../src/sim/mechanism';
 import { Rig, col, count, line, page, queueText, rig, settle } from './helpers';
 
@@ -218,6 +218,84 @@ test('a key that is down in its slot holds the lock comb off until it comes up',
   assert.ok(tw.lineLockIn, 'when J comes up the comb goes in');
   assert.ok(c.lockBar.q > LOCK_ENGAGE + 0.0012, 'far enough for its teeth to cover the full thickness of the levers');
   assert.equal(tw.marks.length, 1, 'J itself never printed');
+});
+
+// The trip lock: the comb stops every key that is up when the carriage arrives, but not one already on its way down.
+// Without a guard on the escapement itself such a stroke tripped it with the carriage against the margin stop, the
+// loose dog came back in a tooth ahead, and the next line started one column in.
+const dogAt = (r: Rig): number => r.tw.core.state.toothLoose - r.tw.core.state.ratchet;
+
+test('a stroke that slips past the comb during the last step cannot trip the escapement or shift the next line', () => {
+  for (const second of ['Space', 'KeyB']) {
+    for (const delay of [35, 55, 65, 75, 90]) {
+      const r = at(MARGIN.right - 1);
+      const { tw } = r, say = `${second} ${delay} ms after the last letter`;
+      tw.keyDown('KeyA');
+      tw.advance(delay / 1000);
+      tw.keyDown(second, { force: second === 'Space' ? 2.2 : 3.2 });
+      rest(r, () => { if (tw.tripLockIn) assert.ok(tw.core.rocker.q < ESC.fixedIn / ESC.dogR, `${say}: the rocker never reaches the angle that lets the fixed dog in`); }, 3);
+      assert.equal(count(tw, 'trip'), 1, `${say}: only the last letter trips the escapement`);
+      assert.equal(tw.marks.length, 1, `${say}: nothing else prints`);
+      assert.ok(Math.abs(tw.column - MARGIN.right) < 1e-3 && dogAt(r) === MARGIN.right && tw.tripLockIn, `${say}: the carriage stands on its tooth with the tab in`);
+      tw.returnCarriage();
+      rest(r, () => {}, 4);
+      assert.ok(!tw.tripLockIn, 'the tab leaves with the carriage');
+      tw.keyDown('KeyZ');
+      rest(r);
+      assert.ok(Math.abs(col(tw.marks[1]) - MARGIN.left) < 0.03, `${say}: the next line starts in the first column (${col(tw.marks[1]).toFixed(3)})`);
+    }
+  }
+});
+
+test('a key that gets past the comb is stopped at the universal bar, however hard it is struck', () => {
+  for (const force of [3.2, 12]) {
+    const r = at(MARGIN.right - 1);
+    const { tw } = r, c = tw.core, j = tw.byCode.get('KeyJ')!;
+    // K rests part-way down in its slot, which holds the comb off, while the last letter of the line is typed.
+    tw.keyDown('KeyK', { servo: true });
+    for (let i = 1; i <= 140; i++) { tw.servoDepth.set('KeyK', i * 0.00005); tw.advance(0.005); }
+    tw.keyDown('KeyA');
+    tw.advance(0.4);
+    assert.ok(!tw.lineLockIn && tw.tripLockIn, 'the comb is held off, but the tab stands behind the rocker');
+    tw.events = [];
+    assert.ok(tw.keyDown('KeyJ', { force }), 'J is free to go down');
+    let bar = 0, rocker = 0;
+    const t0 = tw.time;
+    while (tw.time - t0 < 0.5) { tw.step(); bar = Math.max(bar, j.bar.q); rocker = Math.max(rocker, c.rocker.q); }
+    assert.ok(bar > Math.PI / 2 - UBAR_PICKUP && bar < TRAVEL - 0.14, `${force} N: the typebar reaches the universal bar and stops ${(((TRAVEL - bar) * 180) / Math.PI).toFixed(1)}° short of the paper`);
+    assert.ok(rocker <= TRIP_LOCK.angle + 1e-3, `${force} N: the rocker is held at the tab (${rocker.toFixed(4)} rad)`);
+    assert.equal(count(tw, 'trip'), 0);
+    assert.equal(tw.marks.length, 1, 'J prints nothing');
+    assert.deepEqual(tw.events.filter((e) => e.type === 'locked').map((e) => e.id), ['escapement'], 'one knock, reported once');
+    tw.keyUp('KeyK');
+    rest(r);
+    assert.ok(tw.lineLockIn, 'with K up, the comb goes in as well');
+    tw.returnCarriage();
+    rest(r, () => {}, 4);
+    tw.keyDown('KeyZ');
+    rest(r);
+    assert.ok(Math.abs(col(tw.marks[1]) - MARGIN.left) < 0.03 && dogAt(r) === MARGIN.left + 1);
+  }
+});
+
+test('if the rocker is still swung out when the tab arrives, the carriage waits for it', () => {
+  const r = at(MARGIN.right - 1);
+  const { tw } = r, c = tw.core, fixedIn = ESC.fixedIn / ESC.dogR;
+  // The space bar is pressed home by a guided finger (the escapement trips), then let up only part of the way:
+  // far enough to free the wheel, not far enough for the rocker to be home.
+  tw.keyDown('Space', { servo: true });
+  for (let i = 1; i <= 130; i++) { tw.servoDepth.set('Space', i * 0.0001); tw.advance(0.004); }
+  assert.ok(c.state.fixedIn && c.rocker.q > fixedIn, 'tripped and held by the fixed dog');
+  let depth = 0.013;
+  while (depth > 0.004 && (c.state.fixedIn || c.rocker.q > 0.068)) { depth -= 0.00005; tw.servoDepth.set('Space', depth); tw.advance(0.004); }
+  tw.advance(0.15);
+  assert.ok(c.rocker.q > TRIP_LOCK.angle && c.rocker.q < fixedIn && !c.state.fixedIn, `the rocker hovers between home and tripped (${c.rocker.q.toFixed(4)} rad)`);
+  assert.ok(c.tripBlock.active && Math.abs(c.carriage.q - c.limits.cTrip) < 3e-5, `the carriage has stopped against the finger, ${((c.carriage.q / CHAR_PITCH - (MARGIN.right - 1)) * CHAR_PITCH * 1e3).toFixed(3)} mm into its step`);
+  assert.ok(!tw.tripLockIn);
+  tw.keyUp('Space');
+  rest(r);
+  assert.ok(Math.abs(tw.column - MARGIN.right) < 1e-3 && dogAt(r) === MARGIN.right && tw.tripLockIn, 'let go, it finishes the step and the tab goes in');
+  assert.equal(count(tw, 'trip'), 1);
 });
 
 test('a key held on a tooth drops into its slot as the comb leaves, without throwing the comb', () => {

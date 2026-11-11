@@ -1,7 +1,7 @@
 // The complete typewriter as one physical system, plus the bookkeeping that turns contacts into ink.
 
 import { Body, Constraint, System } from './solver';
-import { CHAR_PITCH, ESC, F, KeyGeom, LOCK_ANGLE, LOCK_ENGAGE, P0, PAPER, PLATEN_AXIS, PLATEN_R, RIBBON, R_SEG, TOOTH_PITCH, U, buildKeys } from './layout';
+import { CHAR_PITCH, ESC, F, KeyGeom, LOCK_ANGLE, LOCK_ENGAGE, P0, PAPER, PLATEN_AXIS, PLATEN_R, RIBBON, R_SEG, TOOTH_PITCH, TRIP_LOCK, U, buildKeys } from './layout';
 import { Core, CoreState, Group, GroupName, buildCore, coreLogic, lockRest, SPEC } from './mechanism';
 import { ImpactState, Train, buildTrain, setTrainAwake, trainAtRest } from './typeaction';
 import { Finger, FingerOptions, FingerPhase, ReturnHand, HandPhase } from './actuators';
@@ -51,6 +51,8 @@ export interface Snapshot {
   spaceLock: boolean;
   /** The comb's stop against a lever in its slot: on or off, and where it caught the comb. */
   lockBlock: { enabled: boolean; bound: number };
+  /** The trip lock: tab behind the rocker's finger; or finger in the tab's way, and where it caught the carriage. */
+  trip: { lock: boolean; block: boolean; bound: number; armed: boolean };
 }
 
 const FLAGS = 5;
@@ -86,6 +88,8 @@ export class Typewriter {
   private trainWatch = new Map<Train, Watcher[]>();
   private awakeTrains: Train[] = [];
   private heldByLoose = true;
+  /** The rocker has swung home since it last met the trip lock's tab (one "locked" report per knock). */
+  private tripArmed = true;
   private detentIndex = 0;
   /** Hook for the typist scheduler, called every 10 substeps (and once per advance while everything rests). */
   schedule: (() => void) | null = null;
@@ -132,6 +136,8 @@ export class Typewriter {
   get column(): number { return this.core.carriage.q / CHAR_PITCH; }
   /** Lines fed since the sheet was loaded. */
   get line(): number { return (this.core.platen.q * SPEC.lineTeeth) / (2 * Math.PI); }
+  /** The trip lock has closed: the tab on the carriage stands behind the rocker's finger. */
+  get tripLockIn(): boolean { return this.core.tripLock.enabled; }
   /** The line lock has closed: the teeth of the comb stand under the key levers. */
   get lineLockIn(): boolean { return this.core.lockBar.q > LOCK_ENGAGE; }
   /** The escapement has no letter space left before the right margin stop: the typist stops striking keys. */
@@ -209,8 +215,9 @@ export class Typewriter {
   private makeFinger(spec: FingerSpec): Finger | null {
     const c = this.core;
     let target: Body, top: Vec3, landed: () => boolean;
-    // A stroke has landed when the type meets the paper or the key bottoms, or when the key meets the line lock.
-    if (spec.id === 'Space') { target = c.space; top = c.points.spaceTop; landed = () => c.space.q > c.limits.spaceMax * 0.97 || c.spaceLock.active; this.wake('space'); this.wake('esc'); }
+    // A stroke has landed when the type meets the paper or the key bottoms, or when it meets a lock: the comb's
+    // tooth under the key, or the universal bar held by the locked escapement.
+    if (spec.id === 'Space') { target = c.space; top = c.points.spaceTop; landed = () => c.space.q > c.limits.spaceMax * 0.97 || c.spaceLock.active || (c.tripLock.active && c.spacePush.active); this.wake('space'); this.wake('esc'); }
     else if (spec.id === 'ShiftLeft' || spec.id === 'ShiftRight') {
       target = c.shift; top = spec.id === 'ShiftLeft' ? c.points.shiftTopL : c.points.shiftTopR;
       landed = () => c.cradleUp.active || c.shift.q > c.limits.shiftMax * 0.97;
@@ -220,7 +227,7 @@ export class Typewriter {
       const t = this.byCode.get(spec.id);
       if (!t) return null;
       target = t.lever; top = t.geom.top;
-      landed = () => t.hit[0].active || t.hit[1].active || t.lever.q > t.geom.keyAngle * 0.995 || t.lock.active;
+      landed = () => t.hit[0].active || t.hit[1].active || t.lever.q > t.geom.keyAngle * 0.995 || t.lock.active || (c.tripLock.active && t.ubar.active);
       this.wakeTrain(t);
       t.fingers++;
     }
@@ -270,7 +277,9 @@ export class Typewriter {
     c.hammer.q = 0; c.hammer.v = 0;
     c.lockBar.q = lockRest(c.carriage.q); c.lockBar.v = 0;
     c.lockBlock.enabled = false;
+    c.tripLock.enabled = c.tripBlock.enabled = false;
     this.heldByLoose = true;
+    this.tripArmed = true;
   }
 
   step(): void { this.sys.step(); }
@@ -325,8 +334,10 @@ export class Typewriter {
   /**
    * Line lock. Each tooth of the comb is either beside its lever or under it, and which contact can act follows
    * from where the two parts are: a lever that is down in its slot stands in the comb's way; a tooth that has
-   * slid under a lever stops that lever a little below its rest position. Runs last before every substep, after
-   * anything that may have woken a part.
+   * slid under a lever stops that lever a little below its rest position. The trip lock is the same kind of
+   * pair: the carriage's tab is either short of the rocker's finger (which then blocks it if the rocker is swung
+   * out) or behind it (which then keeps the rocker home). Runs last before every substep, after anything that
+   * may have woken a part.
    */
   private lockLogic(): void {
     const c = this.core;
@@ -346,6 +357,12 @@ export class Typewriter {
     const block = inSlot && !under;
     if (block && !c.lockBlock.enabled) c.lockBlock.bound = Math.min(LOCK_ENGAGE, Math.max(LOCK_ENGAGE - 2e-5, c.lockBar.q));
     c.lockBlock.enabled = block;
+
+    const past = c.carriage.q > c.limits.cTrip;
+    c.tripLock.enabled = past && (c.tripLock.enabled || c.rocker.q <= TRIP_LOCK.angle + 2e-3);
+    const wait = !past && c.rocker.q > TRIP_LOCK.angle;
+    if (wait && !c.tripBlock.enabled) c.tripBlock.bound = Math.min(c.limits.cTrip, Math.max(c.limits.cTrip - 2e-5, c.carriage.q));
+    c.tripBlock.enabled = wait;
   }
 
   private post(): void {
@@ -375,6 +392,8 @@ export class Typewriter {
       if (held && !this.heldByLoose) this.emit('step', undefined, Math.abs(c.holdLoose.vnPre));
       if (held) this.heldByLoose = true;
       else if (!c.state.looseIn || c.holdLoose.value > 2e-5) this.heldByLoose = false;
+      if (c.rocker.q < 0.5 * TRIP_LOCK.angle) this.tripArmed = true;
+      else if (this.tripArmed && c.tripLock.active) { this.tripArmed = false; this.emit('locked', 'escapement', c.rocker.vPre); }
     }
     if (c.groups.feed.awake) {
       const idx = Math.round((c.platen.q * SPEC.lineTeeth) / (2 * Math.PI));
@@ -444,6 +463,7 @@ export class Typewriter {
       groups: GROUP_ORDER.map((name) => ({ awake: this.core.groups[name].awake, quiet: this.core.groups[name].quiet })),
       flags, watch: this.watchers().map((w) => w.was), held: this.heldByLoose, spaceLock: this.core.spaceLock.enabled,
       lockBlock: { enabled: this.core.lockBlock.enabled, bound: this.core.lockBlock.bound },
+      trip: { lock: this.core.tripLock.enabled, block: this.core.tripBlock.enabled, bound: this.core.tripBlock.bound, armed: this.tripArmed },
     };
   }
 
@@ -475,6 +495,10 @@ export class Typewriter {
     this.core.spaceLock.enabled = s.spaceLock;
     this.core.lockBlock.enabled = s.lockBlock.enabled;
     this.core.lockBlock.bound = s.lockBlock.bound;
+    this.core.tripLock.enabled = s.trip.lock;
+    this.core.tripBlock.enabled = s.trip.block;
+    this.core.tripBlock.bound = s.trip.bound;
+    this.tripArmed = s.trip.armed;
     const b = this.sys.bodies, cons = this.sys.constraints;
     for (let i = 0; i < this.permanent; i++) { b[i].q = s.q[i]; b[i].v = s.v[i]; }
     // Contact state belongs to the moment being restored, not the one being left: pre-step logic reads it

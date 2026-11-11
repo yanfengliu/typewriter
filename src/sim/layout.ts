@@ -123,6 +123,28 @@ export const LOCK = {
   buffer: 0.006,
   lugY: [0.119, 0.13] as [number, number],
 };
+/**
+ * Trip lock: the escapement's own guard at the end of the line. A tab hanging from the carriage moves in behind a
+ * finger of the dog rocker as the carriage leaves the last printable column, and from then on the rocker cannot
+ * swing far enough to put the fixed dog into the wheel. If the rocker is still swung out when the tab arrives,
+ * the finger stands in the tab's way and the carriage waits for it.
+ */
+export const TRIP_LOCK = {
+  /**
+   * Carriage travel past the last printable column at which the tab reaches the finger. It must be more than
+   * the 0.07 mm the carriage creeps onto the fixed dog while the last letter's key is down, and small enough
+   * that a carriage stopped there has hardly begun to move (the escape wheel coasts on from wherever it is).
+   */
+  start: 0.00015,
+  /** Swing the tab still leaves the rocker: 1.4 mm at the dogs, where the fixed dog needs 2.2 mm to enter the wheel. */
+  angle: 0.05,
+  /** The finger: where it stands across the machine, its tip relative to the rocker's pivot (forward, up), half its thickness. */
+  fingerX: 0.0235,
+  tip: [0.006, 0.0423] as [number, number],
+  fingerHalf: 0.00075,
+  /** How far down the tab hangs (it has to clear the tops of the frame's side plates as the carriage travels). */
+  tabBottom: 0.1205,
+};
 /** Comb travel at which the edge of a tooth reaches the side of a lever standing in its slot. */
 export const LOCK_ENGAGE = (LOCK.slot - KEY_LEVER_T) / 2;
 /** Key lever angle at which its lower edge meets a tooth standing under it. */

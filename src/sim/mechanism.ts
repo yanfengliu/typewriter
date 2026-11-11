@@ -6,7 +6,7 @@ import { Body, BodyDef, Constraint, Force, System } from './solver';
 import { CoordSpring, FnConstraint, FnForce, Limit, PointPlane, Rod } from './elements';
 import {
   AUX_FULCRUM, BACKSPACE, CARRIAGE_X0, CHAR_PITCH, ESC, F, GLYPH_PITCH, KEY_DIP, KEY_FULCRUM, LOCK, LOCK_ENGAGE, MARGIN, PLATEN_AXIS, PLATEN_R,
-  RIBBON_LEVER, ROW_Y, ROW_Z, SHIFT, SPACE_BAR, TILT, TOOTH_PITCH, U, UBAR_TRAVEL, WHEEL_RATIO, X,
+  RIBBON_LEVER, ROW_Y, ROW_Z, SHIFT, SPACE_BAR, TILT, TOOTH_PITCH, TRIP_LOCK, U, UBAR_TRAVEL, WHEEL_RATIO, X,
 } from './layout';
 import { Vec3, addScaled, scale } from './vec';
 
@@ -43,14 +43,15 @@ export interface Core {
   toothLoose: FnConstraint; toothFixed: FnConstraint; ratchet: FnConstraint; holdLoose: FnConstraint; holdFixed: FnConstraint;
   marginLeft: Limit; marginRight: Limit;
   cradleDown: Limit; cradleUp: Limit; shiftRail: PointPlane;
-  spacePush: PointPlane; spaceLock: Limit; lockBlock: Limit; lockBuffer: FnForce; backPush: FnConstraint; pawl: FnConstraint; bellCam: FnConstraint; bellStop: Limit;
+  spacePush: PointPlane; spaceLock: Limit; lockBlock: Limit; lockBuffer: FnForce; tripLock: Limit; tripBlock: Limit; backPush: FnConstraint; pawl: FnConstraint; bellCam: FnConstraint; bellStop: Limit;
   ribbonLink1: Rod; ribbonLink2: Rod;
   mainspring: FnForce;
   state: CoreState;
   groups: Record<GroupName, Group>;
   /** Points used by actuators and by the viewer (assembly coords). */
   points: { spaceTop: Vec3; shiftTopL: Vec3; shiftTopR: Vec3; backTop: Vec3; leverHandle: Vec3; leverPivot: Vec3; hammerPivot: Vec3; rockerArm: Vec3; spaceTip: Vec3; ubarTip: Vec3; ubarPin: Vec3; vibratorPin: Vec3; shoe: Vec3 };
-  limits: { shiftMax: number; spaceMax: number; backMax: number; leverMax: () => number; cLeft: number; cRight: number; cBell: number };
+  /** cTrip: carriage travel at which the trip lock's tab reaches the rocker's finger. */
+  limits: { shiftMax: number; spaceMax: number; backMax: number; leverMax: () => number; cLeft: number; cRight: number; cBell: number; cTrip: number };
   /** How far the carriage's lug has squeezed the lock comb's buffer spring (m, 0 when they are apart). */
   lockSqueeze: () => number;
 }
@@ -197,6 +198,21 @@ export function buildCore(sys: System): Core {
   const lockBlock = sys.add(new Limit(lockBar, LOCK_ENGAGE, -1), 'lockBlock');
   lockBlock.enabled = false;
 
+  // --- Trip lock: nothing may trip the escapement once the carriage has left the last printable column ---
+  // The comb stops every key that is up when the carriage arrives, but not one already on its way down. Such a
+  // stroke would trip the escapement with the carriage against the margin stop: the loose dog would come back
+  // in a tooth ahead, and the next line would start one column to the right. So a tab on the carriage moves in
+  // behind a finger of the dog rocker, and the rocker can no longer swing far enough to let the fixed dog in:
+  // the stroke ends with its typebar against the universal bar, short of the paper. If the rocker is still swung
+  // out when the tab arrives, the finger stands in the tab's way and the carriage waits. Both stops are switched
+  // and placed by the machine (lockLogic), like the comb's, so they are not in the group's list.
+  const cTrip = (MARGIN.right - 1) * CHAR_PITCH + TRIP_LOCK.start;
+  const tripLock = sys.add(new Limit(rocker, TRIP_LOCK.angle, -1), 'tripLock');
+  tripLock.restitution = 0.1;
+  tripLock.enabled = false;
+  const tripBlock = sys.add(new Limit(carriage, cTrip, -1), 'tripBlock');
+  tripBlock.enabled = false;
+
   // --- Carriage: shift cradle, platen, line-space lever ------------------------------------------
   G.use('shift');
   const cradle = G.b({ name: 'cradle', parent: carriage, kind: 'slide', axis: U, inertia: SPEC.cradleMass, mass: SPEC.cradleMass, damping: 3 });
@@ -303,9 +319,9 @@ export function buildCore(sys: System): Core {
   return {
     ubar, rocker, looseDog, wheel, carriage, cradle, platen, ribbonLever, vibrator, shift, space, backspace, lineLever, hammer, lockBar,
     ubarStop, rockerStop, trip, toothLoose, toothFixed, ratchet, holdLoose, holdFixed, marginLeft, marginRight, cradleDown, cradleUp, shiftRail,
-    spacePush, spaceLock, lockBlock, lockBuffer, backPush, pawl, bellCam, bellStop, ribbonLink1, ribbonLink2, mainspring, state: st, groups,
+    spacePush, spaceLock, lockBlock, lockBuffer, tripLock, tripBlock, backPush, pawl, bellCam, bellStop, ribbonLink1, ribbonLink2, mainspring, state: st, groups,
     points: { spaceTop: [0, SPACE_BAR.y, SPACE_BAR.z], shiftTopL: [-SHIFT.x, ROW_Y[3], ROW_Z[3]], shiftTopR: [SHIFT.x, ROW_Y[3], ROW_Z[3]], backTop, leverHandle, leverPivot, hammerPivot, rockerArm, spaceTip, ubarTip, ubarPin, vibratorPin, shoe },
-    limits: { shiftMax, spaceMax, backMax, leverMax, cLeft, cRight, cBell },
+    limits: { shiftMax, spaceMax, backMax, leverMax, cLeft, cRight, cBell, cTrip },
     lockSqueeze: () => Math.max(0, squeeze()),
   };
 }
