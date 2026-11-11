@@ -69,4 +69,4 @@ docs/         physics notes, devlog, lessons
 
 ## Checks
 
-`npm run check` runs the type check and the tests. The tests cover the solver against closed-form results (pendulum period, restitution, spring-damper impact), and the machine for causal order of a keystroke, rigid link closure, energy bookkeeping, part-removal counterfactuals, timestep convergence, exact replay from a snapshot, and typing behaviour (no lost input, margins, bell, line feed, shift).
+`npm run check` runs the type check and the tests. `scripts/smoke.sh` checks the browser path from real key events to ink on the page (it needs the dev server and the Playwright CLI; see the script's header). The tests cover the solver against closed-form results (pendulum period, restitution, spring-damper impact), and the machine for causal order of a keystroke, rigid link closure, energy bookkeeping, part-removal counterfactuals, timestep convergence, exact replay from a snapshot, and typing behaviour (no lost input, margins, bell, line feed, shift).

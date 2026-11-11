@@ -54,6 +54,7 @@ The designated coordinator reads `../fleet/docs/skills/coordinator.md` before pl
 
 - `npm run check`: type-checks `src` and `tests`, then runs the physics tests (solver against closed forms; keystroke and typing behaviour).
 - `npm run build`: type-check plus production build; must succeed before a commit that touches `src`.
+- `scripts/smoke.sh` (needs the dev server on port 5179 and the Playwright CLI): real key events must appear as the same text on the page, at real-time speed, with no console errors. Run it after any change to `src/ui`, `src/view` or the typist.
 - Visual or interactive changes: look at them in a foreground or headless browser at full resolution (see lessons: the in-app browser pane throttles when hidden). `scripts/walk-tour.sh` walks the tour with the Playwright CLI and saves a screenshot per step under `output/playwright/tour/`; a step that reports `running: true` did not finish.
 
 ## Invariants and boundaries
