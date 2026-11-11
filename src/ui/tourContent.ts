@@ -125,7 +125,7 @@ export const TOUR: TourStep[] = [
   {
     chapter: 'One keystroke', title: '5 · Impact',
     body: `<p>Slowed 400 times, and frozen at the instant of greatest pressure. The type slug has passed through the guide and hit the ribbon, paper and rubber platen at about <b>4 metres per second</b>.</p>
-      <p>The contact lasts about a third of a millisecond and peaks near <b>90 newtons</b>, thirty times what your finger pressed with. This is why the stroke must be a quick tap: the linkage does not <em>press</em> the type on the paper, it <em>throws</em> it. Momentum makes the mark.</p>
+      <p>The contact lasts about a third of a millisecond and peaks at about <b>85 newtons</b>, more than twenty-five times what your finger pressed with. This is why the stroke must be a quick tap: the linkage does not <em>press</em> the type on the paper, it <em>throws</em> it. Momentum makes the mark.</p>
       <p>Next, the rubber throws the bar back.</p>`,
     view: { shot: side(-0.016, 0.166, 0.1), slice: 0.0125, sliceBack: -0.0125, forces: true, shell: 'hidden', focus: ['typeaction', 'ribbon', 'feed', 'paper'], solo: KEY, highlight: [`bar:${KEY}`] },
     speed: 0.0025, run: stroke(4, 5), readouts: [R.speed, R.force, R.ribbon, R.fingerWork],
@@ -140,8 +140,8 @@ export const TOUR: TourStep[] = [
   },
   {
     chapter: 'One keystroke', title: '7 · Everything falls back to rest',
-    body: `<p>The typebar drops onto its felt rest, the key spring lifts the lever, and the machine is ready again, about a seventh of a second after it started.</p>
-      <p><b>The energy account for this one letter:</b> your finger put in the work shown below. About a third of it arrived at the paper as the typebar's motion; the rest went into lifting the bar, stretching the key spring, flicking the universal bar and ribbon, and friction.</p>
+    body: `<p>The typebar drops onto its felt rest, the key spring lifts the lever, and the machine is ready again, about a sixth of a second after it started.</p>
+      <p><b>The energy account for this one letter:</b> your finger put in the work shown below. Nearly half of it arrived at the paper as the typebar's motion; the rest went into lifting the bar, stretching the key spring, flicking the universal bar and ribbon, and friction.</p>
       <p>The step of the carriage cost your finger nothing. It took about 23 mJ out of the mainspring.</p>`,
     view: { shot: side(0.03, 0.08, 0.74), slice: CUT, shell: 'hidden', focus: ['keys', 'typeaction'], solo: KEY, highlight: trainParts },
     speed: 0.05, run: stroke(6, 7), readouts: [R.fingerWork, R.spring, R.column],

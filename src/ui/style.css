@@ -109,3 +109,4 @@ input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--accent); }
 .note { color: var(--accent); min-width: 0; }
 .legend.forces { font-size: 12px; margin: 0 0 10px; }
 .legend.forces li { margin-bottom: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: pre; }

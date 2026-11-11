@@ -38,7 +38,7 @@ The end of a line behaves like the real thing: a bell rings eight spaces before 
 
 Every moving part is a rigid body with one degree of freedom (a hinge or a slide). Wire links, stops, cams, ratchets and contacts are constraints solved every 25 microseconds, so pivots and links stay rigid by construction and each link carries a force you can read. See [docs/physics.md](docs/physics.md) for the model, its numbers and its limits.
 
-- **Type action** for all 44 keys: key lever, key link, sub-lever, draw link and typebar as separate bodies, with return spring, felt rest and down-stop. The type slug hits a rubber platen modelled as an elastic contact; the blow lasts about a third of a millisecond and peaks near 90 N.
+- **Type action** for all 44 keys: key lever, key link, sub-lever, draw link and typebar as separate bodies, with return spring, felt rest and down-stop. The type slug hits a rubber platen modelled as an elastic contact; the blow lasts about a third of a millisecond and peaks at about 85 N.
 - **Universal bar and ribbon**: the typebar pushes the universal bar, which lifts the ribbon vibrator through a small crank.
 - **Escapement**: rocker with a fixed dog and a sliding loose dog, a 16-tooth escape wheel, pinion and rack with a one-way ratchet, a retaining pawl.
 - **Carriage**: 1.3 kg on rails, pulled by a mainspring through a draw band; margin stops; bell hammer cocked and released by a cam.

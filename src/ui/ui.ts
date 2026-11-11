@@ -13,7 +13,7 @@ import { Tour, StepView, TourHost } from './tour';
 import { TOUR } from './tourContent';
 import { info } from './partsInfo';
 import { clear, h, segmented, slider, toggle } from './dom';
-import { MARGIN } from '../sim/layout';
+import { CHAR_PITCH, LINE_PITCH, MARGIN, PAPER } from '../sim/layout';
 
 const SPEEDS: Array<[number, string]> = [[1, '1×'], [0.25, '¼'], [0.05, '1⁄20'], [0.01, '1⁄100'], [0.002, '1⁄500']];
 const FOCUS: Array<[string, Sys[] | null]> = [
@@ -38,6 +38,9 @@ export class UI implements TourHost {
   private labelLayer = h('div', { class: 'labels' });
   private labels = new Map<string, HTMLElement>();
   private status = h('div', { class: 'status' });
+  /** The page as text, for screen readers (the sheet itself is only pixels on a 3D surface). */
+  private transcript = h('div', { class: 'sr-only', role: 'log', 'aria-live': 'polite', 'aria-label': 'Typed page' });
+  private transcribed = -1;
   private scrub!: HTMLInputElement;
   private scrubRow!: HTMLElement;
   private playBtn!: HTMLButtonElement;
@@ -186,7 +189,7 @@ export class UI implements TourHost {
         h('button', { class: 'btn', onclick: () => { app.typist.clear(); app.tw.newSheet(); this.replay.reset(); }, title: 'Put in a fresh sheet of paper' }, 'New sheet')),
       this.scrubRow, this.status,
     );
-    this.root.append(top, this.tour.panel, this.infoCard, right, this.scope.el, bottom, this.labelLayer, this.tooltip, this.toast);
+    this.root.append(top, this.tour.panel, this.infoCard, right, this.scope.el, bottom, this.labelLayer, this.tooltip, this.toast, this.transcript);
     // Clicking a control must not steal the keyboard from the typewriter.
     this.root.addEventListener('pointerup', () => window.setTimeout(() => { const a = document.activeElement as HTMLElement | null; if (a && (a.tagName === 'BUTTON' || a.tagName === 'INPUT')) a.blur(); }, 0));
     this.root.addEventListener('pointerdown', () => this.sound.unlock());
@@ -370,7 +373,29 @@ export class UI implements TourHost {
     if (this.handMesh.visible) { const lever = app.rig.byId.get('lineLever')!; lever.world(tw.core.points.leverHandle, this.tmp); this.handMesh.position.copy(this.tmp).add(new THREE.Vector3(-0.02, 0.004, 0.004)); }
 
     if (++this.tick % 6 === 0) { this.scope.draw(); this.updateStatus(); if (this.tour.active) this.tour.refresh(); }
+    if (this.tick % 30 === 0 && tw.marks.length !== this.transcribed) this.transcribe();
     if (this.showLabels) this.placeLabels();
+  }
+
+  /** Rebuild the text of the page from the ink marks: row by line, column by character cell. */
+  private transcribe(): void {
+    const marks = this.app.tw.marks;
+    this.transcribed = marks.length;
+    const rows = new Map<number, Map<number, string>>();
+    for (const m of marks) {
+      if (m.ink < 0.1) continue;
+      const r = Math.round((m.v - PAPER.topMargin) / LINE_PITCH), c = Math.round(m.u / CHAR_PITCH);
+      if (!rows.has(r)) rows.set(r, new Map());
+      rows.get(r)!.set(c, m.ch);
+    }
+    const lines: string[] = [];
+    for (const r of [...rows.keys()].sort((a, b) => a - b)) {
+      const cells = rows.get(r)!, last = Math.max(...cells.keys());
+      let s = '';
+      for (let c = MARGIN.left; c <= last; c++) s += cells.get(c) ?? ' ';
+      lines.push(s);
+    }
+    this.transcript.textContent = lines.join('\n');
   }
 
   private placeLabels(): void {
