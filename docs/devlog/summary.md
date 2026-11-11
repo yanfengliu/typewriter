@@ -2,6 +2,7 @@
 
 Newest first. One dated line per change that alters behaviour.
 
+- 2026-11-11 — Key levers drawn with bent-up front ends (view only); screen-reader transcript of the typed page; instruments panel moved bottom left; end-of-page hint.
 - 2026-11-11 — Force arrows drawn from solver forces (finger, link tensions, impact, universal bar, mainspring, tooth load, shift rail, hand), on in the tour's linkage, impact and spacing steps. Leaving the tour restores the user's own machine and page. Snapshot restore clears contact flags (a strike begun after restoring from mid-impact lifted off at once; regression test added).
 - 2026-11-11 — Guided tour, view modes and interface: 16-step tour that replays the real simulation for each step (side-elevation and slab cross-sections, frozen at the moment the step is about); glass/hidden body, focus, colour by job, exploded, slice, labels, instruments, replay scrubbing, slow motion to 1/500, press-slowly by hand, synthesised sound. Checked by walking every step and the controls in a headless GPU browser at 1920×1080 (175 fps idle, real-time ratio 1.00 while typing).
 - 2026-11-11 — 3D model built procedurally from the simulation's own geometry: every part posed from its body, links and springs drawn between live end points, ink stamped from recorded contacts.

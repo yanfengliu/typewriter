@@ -343,6 +343,7 @@ export class UI implements TourHost {
     parts.push(`Line ${Math.round(tw.line) + 1}, column ${Math.round(tw.column - MARGIN.left) + 1} of ${MARGIN.right - MARGIN.left}`);
     if (typist.pending) parts.push(`${typist.pending} keystroke${typist.pending > 1 ? 's' : ''} waiting`);
     if (typist.lineLocked) parts.push('End of line: the keys are locked. Press Enter to return the carriage.');
+    if (tw.line > 55) parts.push('Near the bottom of the sheet: New sheet feeds in fresh paper.');
     if (this.app.achieved < 0.9 && !this.app.paused) parts.push('Running slower than real time on this device');
     if (!tw.marks.length && !typist.pending && !this.tour.active) parts.push('Just type. Enter returns the carriage; the guided tour explains every part.');
     this.status.textContent = parts.join('  ·  ');
