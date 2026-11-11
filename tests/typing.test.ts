@@ -149,3 +149,36 @@ test('placing the carriage gives the same state as spacing there', () => {
   assert.ok(Math.abs(col(a.tw.marks[0]) - col(b.tw.marks[0])) < 1e-3, 'the next letter lands on the same column');
   assert.ok(Math.abs(a.tw.column - b.tw.column) < 1e-3 && Math.abs(b.tw.column - MARGIN.left) < 1e-3, 'and both return to the margin');
 });
+
+test('after the machine is restored mid-capital, a reset typist starts clean', () => {
+  const r = rig();
+  const fresh = r.tw.snapshot();
+  queueText(r, 'H');
+  // Run until Shift is physically held and the capital is on its way.
+  while (r.tw.marks.length === 0 && r.tw.time < 2) r.tw.advance(0.001);
+  assert.equal(r.tw.marks[0].ch, 'H');
+  assert.ok(r.tw.core.cradle.q > 0.006, 'the platen is still raised: the typist is holding Shift');
+  // The tour does exactly this when a step is run again: the held finger no longer exists afterwards.
+  r.tw.restore(fresh);
+  r.typist.reset();
+  queueText(r, 'Hi');
+  const seconds = settle(r, 5);
+  assert.equal(page(r.tw.marks)[0].trimStart(), 'Hi', 'it presses Shift again instead of waiting for a finger that is gone');
+  assert.ok(seconds < 1.5, `and does not stall (${seconds.toFixed(2)} s)`);
+  assert.ok(r.tw.core.cradle.q < 1e-5 && r.tw.idle, 'Shift is released at the end');
+});
+
+test('touch is visible on the page: light, normal and heavy strikes give distinct darkness', () => {
+  const inks = [1.3, 3.2, 5].map((force) => {
+    const r = rig();
+    r.typist.unevenness = 0;
+    r.tw.touch = force;
+    queueText(r, 'nnn');
+    settle(r);
+    assert.equal(r.tw.marks.length, 3);
+    return r.tw.marks.reduce((s, m) => s + m.ink, 0) / 3;
+  });
+  assert.ok(inks[0] > 0.2 && inks[0] < 0.75, `a light touch prints grey (${inks[0].toFixed(2)})`);
+  assert.ok(inks[1] > 0.93, `the normal touch prints black (${inks[1].toFixed(2)})`);
+  assert.ok(inks[2] >= inks[1] && inks[1] - inks[0] > 0.25, 'and the difference between light and normal is plain to see');
+});

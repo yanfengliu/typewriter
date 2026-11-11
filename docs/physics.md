@@ -46,7 +46,7 @@ The typebars pivot on a circle whose centre is the printing point, each about th
 
 Discrete latches, set from simulated positions each substep: which dog overlaps the wheel (from the rocker angle), which tooth each dog will meet, the pinion ratchet's index, the line pawl's pick-up tooth, the backspace pawl's engagement, the bell trip's one-way arm.
 
-Ink: while a type face is in contact, the state at peak force is kept. When the face leaves, a mark is recorded at the sheet position given by that state (carriage travel for the column; platen angle, shift height and where on the platen's circumference the face landed for the line), with darkness `cover · (1 − exp(−F/18 N))`, where `cover` is the fraction of the character the lifted ribbon covered.
+Ink: while a type face is in contact, the state at peak force is kept. When the face leaves, a mark is recorded at the sheet position given by that state (carriage travel for the column; platen angle, shift height and where on the platen's circumference the face landed for the line), with darkness `cover · (1 − exp(−(F/45 N)²))`, where `cover` is the fraction of the character the lifted ribbon covered.
 
 ## 4. Numbers
 
@@ -80,7 +80,7 @@ Because the last tenth of key travel moves the typebar 15°, holding the type ag
 - Counterfactuals: no draw link, no print and no space; typebar missing the universal bar, no ribbon lift and no space; ribbon linkage unhooked, a blow with no ink; mainspring let down, a trip with no space.
 - Convergence: impact time within 1.2% and approach speed within 3% between 25 µs and 6.25 µs.
 - Replay: restoring a snapshot reproduces the future bit for bit, including from the middle of an impact.
-- Typing: bursts print in order with nothing lost at 8–20 strokes per second; repeats, shift, space, backspace, carriage return, bell, line lock and auto return.
+- Typing: bursts print in order with nothing lost at 8–20 strokes per second; repeats, shift, space, backspace, carriage return, bell, line lock and auto return; light, normal and heavy touch give distinct darkness; a typist reset after a restore starts clean.
 
 ## 7. Limits
 

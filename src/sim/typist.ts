@@ -44,6 +44,12 @@ export class Typist {
   enqueue(s: Stroke): void { this.queue.push(s); this.onChange?.(); }
   clear(): void { this.queue.length = 0; this.setLocked(false); this.onChange?.(); }
 
+  /**
+   * Forget everything, including what the typist believes its own hands are doing. Use after the machine's
+   * state has been replaced (Typewriter.restore): the fingers it was holding down no longer exist.
+   */
+  reset(): void { this.holdingShift = false; this.flying = null; this.returning = false; this.clear(); }
+
   private random(): number {
     this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
     return this.seed / 4294967296;
@@ -101,14 +107,13 @@ export class Typist {
       if (tw.atLineEnd) { this.setLocked(true); return; }
       this.setLocked(false);
       // Shift may only move while no type is on its way to the paper.
-      const locked = c.state.shiftLocked;
-      if (!locked && s.shift !== this.holdingShift) {
+      if (s.shift !== this.holdingShift) {
         if (this.flying) return;
         if (s.shift) tw.keyDown('ShiftLeft', { hold: true, force: this.shiftForce }); else tw.keyUp('ShiftLeft');
         this.holdingShift = s.shift;
         return;
       }
-      if (this.flying || !this.shiftSettled(locked || s.shift)) return;
+      if (this.flying || !this.shiftSettled(s.shift)) return;
       if (c.groups.back.awake && (c.backspace.q > 0.002 || Math.abs(c.carriage.v) > 2e-3)) return;
       if (t.fingers > 0 || t.bar.q > 8 * DEG || Math.abs(t.bar.v) > 3) return;
       if (!this.basketClear(t)) return;

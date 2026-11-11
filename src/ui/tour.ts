@@ -98,9 +98,9 @@ export class Tour {
 
   /** Give the user their own machine and page back (when the tour ends, or reaches a step where they type). */
   private giveBack(): void {
-    this.app.typist.clear();
-    if (!this.own) return;
+    if (!this.own) { this.app.typist.clear(); return; }
     this.app.tw.restore(this.own.state);
+    this.app.typist.reset();
     this.app.tw.marks = this.own.marks;
     this.own = null;
     this.app.resetHistory();
@@ -129,8 +129,8 @@ export class Tour {
 
   private reset(): void {
     const { app } = this;
-    app.typist.clear();
     app.tw.restore(this.pristine);
+    app.typist.reset();
     app.resetHistory();
     this.seenEvents.clear();
   }

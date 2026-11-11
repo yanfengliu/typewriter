@@ -44,6 +44,8 @@ export interface Snapshot {
 interface Watcher { c: Constraint; was: boolean; fire: () => void }
 
 const GLYPH_HALF = 0.0017;
+/** Peak force (N) at which a character prints at about 63% of full darkness. */
+export const INK_FORCE = 45;
 const GROUP_ORDER: GroupName[] = ['space', 'back', 'shift', 'feed', 'bell', 'esc'];
 
 export class Typewriter {
@@ -131,7 +133,6 @@ export class Typewriter {
     for (const b of g.bodies) b.awake = true;
     for (const c of g.cons) c.enabled = true;
     for (const f of g.forces) f.enabled = true;
-    if (name === 'shift') this.core.shiftLock.enabled = this.core.state.shiftLocked && this.core.shift.q >= this.core.shiftLock.bound * 0.999;
   }
 
   private rest(g: Group): void {
@@ -157,7 +158,7 @@ export class Typewriter {
         return this.awakeTrains.length === 0 && !g.space.awake && !g.back.awake && !this.hand.busy && Math.abs(c.carriage.v) < 2e-4 && c.ubar.q < 2e-5 &&
           Math.abs(c.ubar.v) < 1e-3 && c.rocker.q < 2e-4 && Math.abs(c.rocker.v) < 0.02 && Math.abs(c.vibrator.v) < 1e-3 && c.state.looseIn;
       case 'shift':
-        return Math.abs(c.shift.v) < 2e-3 && Math.abs(c.cradle.v) < 2e-4 && !this.fingerOn('Shift', true) && (this.fingerOn('Shift', false) || c.shiftLock.enabled || c.shift.q < 3e-4);
+        return Math.abs(c.shift.v) < 2e-3 && Math.abs(c.cradle.v) < 2e-4 && !this.fingerOn('Shift', true) && (this.fingerOn('Shift', false) || c.shift.q < 3e-4);
       case 'space': return !this.fingerOn('Space', false) && c.space.q < 2e-4 && Math.abs(c.space.v) < 2e-3;
       case 'back': return !this.fingerOn('Backspace', false) && c.backspace.q < 2e-4 && Math.abs(c.backspace.v) < 2e-3;
       case 'feed': return !this.hand.busy && c.lineLever.q < 2e-4 && Math.abs(c.lineLever.v) < 2e-3 && Math.abs(c.platen.v) < 2e-3 && Math.abs(Math.sin(SPEC.lineTeeth * c.platen.q)) < 0.08;
@@ -213,9 +214,6 @@ export class Typewriter {
 
   returnCarriage(): void { if (this.hand.busy) return; this.wake('feed'); this.wake('esc'); this.hand.start(); }
 
-  /** Latch or free the shift lock (the lock holds the shift lever down once it has been pressed). */
-  setShiftLock(on: boolean): void { this.core.state.shiftLocked = on; this.wake('shift'); if (!on) this.core.shiftLock.enabled = false; }
-
   /** Feed in a fresh sheet: clears the ink and rewinds the paper to its first line. */
   newSheet(): void { this.marks = []; this.core.platen.q = 0; this.core.platen.v = 0; this.detentIndex = 0; this.emit('newSheet'); }
 
@@ -264,7 +262,6 @@ export class Typewriter {
   private pre(): void {
     const c = this.core;
     if (c.groups.esc.awake) coreLogic(c, (e) => this.emit(e.type === 'bellArm' ? 'bellRelease' : e.type, undefined, e.value));
-    if (c.state.shiftLocked && !c.shiftLock.enabled && c.groups.shift.awake && c.shift.q >= c.shiftLock.bound) c.shiftLock.enabled = true;
     let anyDone = false;
     for (const f of this.fingers) { f.update(); if (f.phase === 'done') anyDone = true; }
     if (anyDone) {
@@ -345,7 +342,8 @@ export class Typewriter {
     const top = RIBBON.restTop + s.lift, bottom = top - RIBBON.width;
     const cover = Math.max(0, Math.min(h + GLYPH_HALF, top) - Math.max(h - GLYPH_HALF, bottom)) / (2 * GLYPH_HALF);
     const force = t.peak[g];
-    const ink = cover * (1 - Math.exp(-force / 18));
+    // Ink transfer rises steeply with pressure and then saturates: a 40 N blow is clearly grey, 90 N is black.
+    const ink = cover * (1 - Math.exp(-((force / INK_FORCE) ** 2)));
     const mark: Mark = { seq: this.seq++, t: s.t, ch: g === 0 ? t.geom.lower : t.geom.upper, key: t.geom.code, u, v, ink, force, speed: s.speed, cover };
     this.marks.push(mark);
     this.emit('impact', t.geom.code, force, mark);
@@ -379,7 +377,6 @@ export class Typewriter {
     // Contact flags belong to the moment being left, not the one being restored.
     for (const c of this.sys.constraints) { c.active = false; c.force = 0; c.lambda = 0; }
     Object.assign(this.core.state, s.core);
-    this.core.shiftLock.enabled = s.core.shiftLocked && this.core.shift.q >= this.core.shiftLock.bound * 0.999;
     this.sys.time = s.time;
     this.sys.steps = s.steps;
     this.marks.length = Math.min(this.marks.length, s.marks);

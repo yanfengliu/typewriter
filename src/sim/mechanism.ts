@@ -34,7 +34,7 @@ export interface Core {
   ubarStop: Limit; rockerStop: Limit; trip: PointPlane;
   toothLoose: FnConstraint; toothFixed: FnConstraint; ratchet: FnConstraint; holdLoose: FnConstraint; holdFixed: FnConstraint;
   marginLeft: Limit; marginRight: Limit;
-  cradleDown: Limit; cradleUp: Limit; shiftRail: PointPlane; shiftLock: Limit;
+  cradleDown: Limit; cradleUp: Limit; shiftRail: PointPlane;
   spacePush: PointPlane; backPush: FnConstraint; pawl: FnConstraint; bellCam: FnConstraint; bellStop: Limit;
   ribbonLink1: Rod; ribbonLink2: Rod;
   mainspring: FnForce;
@@ -56,7 +56,6 @@ export interface CoreState {
   backIn: boolean; backLatch: number;
   bellArmed: boolean;
   lineSpacing: number;
-  shiftLocked: boolean;
 }
 
 export type GroupName = 'esc' | 'shift' | 'feed' | 'space' | 'back' | 'bell';
@@ -76,7 +75,7 @@ export function buildCore(sys: System): Core {
   };
   const st: CoreState = {
     looseIn: true, fixedIn: false, toothLoose: MARGIN.left, toothFixed: 0, ratchet: 0, backTooth: MARGIN.left,
-    pawlIn: false, pawlLatch: 0, backIn: false, backLatch: 0, bellArmed: true, lineSpacing: 1, shiftLocked: false,
+    pawlIn: false, pawlLatch: 0, backIn: false, backLatch: 0, bellArmed: true, lineSpacing: 1,
   };
   const cLeft = MARGIN.left * CHAR_PITCH, cRight = MARGIN.right * CHAR_PITCH, cBell = (MARGIN.right - MARGIN.bellBefore) * CHAR_PITCH;
 
@@ -214,8 +213,6 @@ export function buildCore(sys: System): Core {
   G.c(new Limit(shift, shiftMax, -1), 'shiftBottom').restitution = 0.1;
   const shoe: Vec3 = [CARRIAGE_X0, SHIFT.railY + 0.0003 * U[1], SHIFT.railZ + 0.0003 * U[2]];
   const shiftRail = G.c(new PointPlane(cradle, shoe, shift, [0, SHIFT.railY, SHIFT.railZ], U), 'shiftRail');
-  const shiftLock = G.c(new Limit(shift, shiftMax * 0.985, 1), 'shiftLock');
-  shiftLock.enabled = false;
 
   // --- Space bar: its rear tip lifts the rocker's forward arm -------------------------------------
   G.use('space');
@@ -264,7 +261,7 @@ export function buildCore(sys: System): Core {
 
   return {
     ubar, rocker, looseDog, wheel, carriage, cradle, platen, ribbonLever, vibrator, shift, space, backspace, lineLever, hammer,
-    ubarStop, rockerStop, trip, toothLoose, toothFixed, ratchet, holdLoose, holdFixed, marginLeft, marginRight, cradleDown, cradleUp, shiftRail, shiftLock,
+    ubarStop, rockerStop, trip, toothLoose, toothFixed, ratchet, holdLoose, holdFixed, marginLeft, marginRight, cradleDown, cradleUp, shiftRail,
     spacePush, backPush, pawl, bellCam, bellStop, ribbonLink1, ribbonLink2, mainspring, state: st, groups,
     points: { spaceTop: [0, SPACE_BAR.y, SPACE_BAR.z], shiftTopL: [-SHIFT.x, ROW_Y[3], ROW_Z[3]], shiftTopR: [SHIFT.x, ROW_Y[3], ROW_Z[3]], backTop, leverHandle, leverPivot, hammerPivot, rockerArm, spaceTip, ubarTip, ubarPin, vibratorPin, shoe },
     limits: { shiftMax, spaceMax, backMax, leverMax, cLeft, cRight, cBell },
