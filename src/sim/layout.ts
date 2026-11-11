@@ -82,7 +82,9 @@ export const ROW_Z = [0.101, 0.12, 0.139, 0.158];
 export const ROW_Y = [0.115, 0.104, 0.093, 0.082];
 export const KEY_DIP = 0.014;
 export const KEY_FULCRUM = { y: 0.036, z: -0.1 };
-export const AUX_FULCRUM = { y: 0.036, z: -0.02 };
+/** Second fulcrum rod, below the key levers, for the shift frame and the space bar. */
+export const AUX_FULCRUM = { y: 0.024, z: -0.02 };
+export const RAILS = { y: 0.127, front: -0.052, rear: -0.08, radius: 0.003 };
 export const SUBLEVER = { y: 0.05, z: 0.03, out: 0.032, dx: 0.0016 };
 export const SPACE_BAR = { y: 0.071, z: 0.181, dip: 0.012, width: 0.13 };
 export const SHIFT = { x: 0.1235, railZ: -0.106, railY: 0.118, dip: 0.017 };
@@ -224,9 +226,11 @@ export const UBAR_TRAVEL = UBAR_REST_F - SHANK_REAR;
 
 /** Ribbon lever: pivot behind the typebars, an upright arm pushed by the universal bar, a forward arm lifting the vibrator. */
 export const RIBBON_LEVER = (() => {
-  const pivot = add(addScaled(P0, F, -0.0182), scale(U, -0.047));
+  // The vibrator's stem runs just behind the plane the typebars arrive in, under the platen.
+  const stemF = -0.0015, down = 0.047;
   const upArm = 0.01, liftArm = RIBBON.lift / (UBAR_TRAVEL / upArm);
-  return { pivot, up: addScaled(pivot, U, upArm), lift: addScaled(pivot, F, liftArm), upArm, liftArm };
+  const pivot = add(addScaled(P0, F, stemF - liftArm), scale(U, -down));
+  return { pivot, up: addScaled(pivot, U, upArm), lift: addScaled(pivot, F, liftArm), upArm, liftArm, stemF, down };
 })();
 
 export const norm3 = norm;

@@ -135,3 +135,17 @@ test('striking a key and holding it down "follows through": the type rebounds, r
   assert.ok(r.tw.idle);
   assert.ok(Math.abs(r.tw.column - Math.round(r.tw.column)) < 1e-3 && r.tw.column > MARGIN.left + 0.5, 'the carriage comes to rest on a whole letter space');
 });
+
+test('placing the carriage gives the same state as spacing there', () => {
+  const a = rig(), b = rig();
+  queueText(a, '      ');
+  settle(a);
+  b.tw.placeCarriage(MARGIN.left + 6);
+  b.tw.advance(0.1);
+  assert.ok(Math.abs(a.tw.column - b.tw.column) < 1e-4, `${a.tw.column} vs ${b.tw.column}`);
+  queueText(a, 'q\n');
+  queueText(b, 'q\n');
+  settle(a); settle(b);
+  assert.ok(Math.abs(col(a.tw.marks[0]) - col(b.tw.marks[0])) < 1e-3, 'the next letter lands on the same column');
+  assert.ok(Math.abs(a.tw.column - b.tw.column) < 1e-3 && Math.abs(b.tw.column - MARGIN.left) < 1e-3, 'and both return to the margin');
+});

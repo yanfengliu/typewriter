@@ -1,7 +1,7 @@
 // The complete typewriter as one physical system, plus the bookkeeping that turns contacts into ink.
 
 import { Body, Constraint, System } from './solver';
-import { CHAR_PITCH, F, KeyGeom, P0, PAPER, PLATEN_AXIS, PLATEN_R, RIBBON, R_SEG, U, buildKeys } from './layout';
+import { CHAR_PITCH, ESC, F, KeyGeom, P0, PAPER, PLATEN_AXIS, PLATEN_R, RIBBON, R_SEG, TOOTH_PITCH, U, buildKeys } from './layout';
 import { Core, CoreState, Group, GroupName, buildCore, coreLogic, SPEC } from './mechanism';
 import { Train, buildTrain, setTrainAwake, trainAtRest } from './typeaction';
 import { Finger, FingerOptions, FingerPhase, ReturnHand, HandPhase } from './actuators';
@@ -218,6 +218,22 @@ export class Typewriter {
 
   /** Feed in a fresh sheet: clears the ink and rewinds the paper to its first line. */
   newSheet(): void { this.marks = []; this.core.platen.q = 0; this.core.platen.v = 0; this.detentIndex = 0; this.emit('newSheet'); }
+
+  /**
+   * Set the machine down, at rest, with the carriage at a given column (a demonstration aid: it is the state
+   * you would reach by typing that many spaces, without having to watch them).
+   */
+  placeCarriage(column: number): void {
+    const c = this.core, st = c.state, col = Math.round(column);
+    for (const name of GROUP_ORDER) this.wake(name);
+    c.carriage.q = col * CHAR_PITCH; c.carriage.v = 0;
+    c.wheel.q = (col * TOOTH_PITCH) / ESC.wheelR; c.wheel.v = 0;
+    c.looseDog.q = 0; c.looseDog.v = 0; c.rocker.q = 0; c.rocker.v = 0; c.ubar.q = 0; c.ubar.v = 0;
+    st.toothLoose = col; st.backTooth = col; st.ratchet = 0; st.toothFixed = 0; st.looseIn = true; st.fixedIn = false;
+    st.bellArmed = c.carriage.q < c.limits.cBell - SPEC.bellRamp;
+    c.hammer.q = 0; c.hammer.v = 0;
+    this.heldByLoose = true;
+  }
 
   step(): void { this.sys.step(); }
 
