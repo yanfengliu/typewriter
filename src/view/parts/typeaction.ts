@@ -103,11 +103,17 @@ export function buildTypeAction(rig: Rig, tw: Typewriter, legendMat: THREE.Mater
 
     // --- Key lever with stem and keytop
     const lever = rig.part(`lever:${code}`, { kind: 'keyLever', sys: 'keys', body: t.lever, explode: [0, -0.035, 0.11], anchor: [k.x, yBar1, 0.07] });
+    // A straight bar from the fulcrum past the link, then the front end bent up to its row, with a short stem.
+    const bend = 0.062, neck: [number, number] = [zt, yt - 0.02];
     const outline: Array<[number, number]> = [
-      [KEY_FULCRUM.z - 0.006, yBar0], [zt + 0.0016, yBar0], [zt + 0.0016, yt - 0.0035], [zt - 0.0016, yt - 0.0035], [zt - 0.0016, yBar1],
+      [KEY_FULCRUM.z - 0.006, yBar0], [bend, yBar0], [bend, yBar1],
       [k.springLever[2] + 0.002, yBar1], [k.springLever[2], yBar1 + 0.002], [k.springLever[2] - 0.002, yBar1], [KEY_FULCRUM.z - 0.006, yBar1],
     ];
-    lever.add(plate(outline, 0.0012, zy(k.x), [circle(KEY_FULCRUM.z, KEY_FULCRUM.y, 0.0012, 10, true)]), MAT.steel);
+    lever.add(merge([
+      plate(outline, 0.0012, zy(k.x), [circle(KEY_FULCRUM.z, KEY_FULCRUM.y, 0.0012, 10, true)]),
+      plate(bar2D([bend - 0.002, KEY_FULCRUM.y], neck, 0.003), 0.0012, zy(k.x)),
+      plate(bar2D(neck, [zt, yt - 0.0035], 0.0016), 0.0012, zy(k.x)),
+    ]), MAT.steel);
     const kt = keytop(k.top, cell(i));
     lever.add(kt.body, MAT.keyBlack);
     lever.add(kt.ring, MAT.nickel);

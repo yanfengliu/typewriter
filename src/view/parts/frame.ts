@@ -37,10 +37,10 @@ export function buildFrame(rig: Rig, tw: Typewriter, legendMat: THREE.Material, 
   ]), MAT.iron);
   frame.add(merge([rod(KEY_FULCRUM.y, KEY_FULCRUM.z, 0.0012), rod(SUBLEVER.y, SUBLEVER.z, 0.0012), rod(AUX_FULCRUM.y, AUX_FULCRUM.z, 0.002)]), MAT.steel);
   // Down-stop bar under the key levers (gaps let the space-bar arms pass).
-  const stopSeg = (x0: number, x1: number, y0: number, y1: number) => slab([x0, y0, 0.084], [x1, y1, 0.096]);
+  const stopSeg = (x0: number, x1: number, y0: number, y1: number) => slab([x0, y0, 0.044], [x1, y1, 0.056]);
   const gaps: Array<[number, number]> = [[-0.146, -0.0575], [-0.0518, 0.0518], [0.0575, 0.146]];
-  frame.add(merge(gaps.map(([a, b]) => stopSeg(a, b, 0.01, 0.0195))), MAT.iron);
-  frame.add(merge(gaps.map(([a, b]) => stopSeg(Math.max(a, -0.112), Math.min(b, 0.112), 0.0195, 0.0213))), MAT.rubberGrey);
+  frame.add(merge(gaps.map(([a, b]) => stopSeg(a, b, 0.01, 0.0218))), MAT.iron);
+  frame.add(merge(gaps.map(([a, b]) => stopSeg(Math.max(a, -0.112), Math.min(b, 0.112), 0.0218, 0.0236))), MAT.rubberGrey);
   const feet = rig.part('feet', { kind: 'frame', sys: 'frame', explode: [0, -0.09, 0], anchor: [0.13, 0, 0.17] });
   feet.add(merge([[-0.13, 0.17], [0.13, 0.17], [-0.13, -0.105], [0.13, -0.105]].map(([x, z]) => tube([x, 0, z], [x, 0.006, z], 0.011, 18))), MAT.rubberGrey);
 
