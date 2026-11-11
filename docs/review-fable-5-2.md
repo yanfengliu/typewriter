@@ -298,7 +298,7 @@ I reviewed commit c980360. HEAD has since moved to 3656f6f, but nothing in src/ 
 |---|---|---|---|
 | F22 | In the substep in which the carriage passes the trip point, a blow of 25 N or more can carry the rocker more than 2 mrad past its stop; neither stop then comes on, the escapement trips past the trip point, and with the key held the next line starts in column 11 (report item 1) | Accepted. Retested before repairing: 57 N pressed 2130 substeps after the last letter gave 3 trips, the dog on tooth 76 and the next letter at column 11.007. Only a direct `keyDown` reaches it (the interface's touch stops at 6 N), but it contradicts what the lock is for. | The tab is in whenever the carriage is past the trip point, wherever the rocker stands, as the reviewer proposed; the pair is now decided by one position, so exactly one stop can act. Commit `7ebf546`. The same press now ends with one trip, the dog on tooth 75 and the next letter at 10.007; in the tie the rocker is 2.1 mrad (57 N) and 2.5 mrad (60 N) past its stop for one substep. |
 | F23 | The three trip-lock tests cannot see F22: none goes red with the tolerance set to 0 (item 2) | Accepted. The first test's check ran only while the tab was in, so it was skipped in exactly the case that matters. | New test "a hard blow that reaches the rocker in the very substep the tab arrives is caught all the same": six blows from 36 to 60 N, each timed to the substep and to the four either side; it fails on `c980360` ("57 N pressed 155 substeps on: with the carriage past the trip point the tab is in"). The first test's check is now conditioned on the carriage being past the trip point. Commit `7ebf546`. |
-| F24 | No snapshot test covers a trip-lock moment (item 3) | Accepted. | Two moments added to "snapshots are complete at awkward moments…": a key pressing the universal bar against the locked rocker, and the substep in which the carriage meets the rocker's finger. With one saved item left out of the restore at a time, on a scratch copy: forgetting whether the knock has been reported fails the test ("one knock, reported once"); forgetting either switch or the place the carriage was stopped does not, because `lockLogic` works those three out again from positions before the next solve. They are still saved, which costs nothing. Commit `7ebf546`. |
+| F24 | No snapshot test covers a trip-lock moment (item 3) | Accepted. | Two moments added to "snapshots are complete at awkward moments…": a key pressing the universal bar against the locked rocker, and the substep in which the carriage meets the rocker's finger. With one saved item left out of the restore at a time, on a scratch copy: forgetting whether the knock has been reported fails the test ("one knock, reported once"); forgetting either switch or the place the carriage was stopped does not, because `lockLogic` works those three out again from positions before the next solve. They are still saved, which costs nothing. Commit `7ebf546`. (The part about the place was wrong: see F27 under "Check of the repairs".) |
 | F25 | Three documented numbers are narrower than measured once strokes are harder (item 4) | Accepted. The windows depend on which typebar reaches the universal bar first, so they grow with the force of the second stroke; the first measurements used one force. | Measured again on `7ebf546` (360 timed pairs, all ending at rest on tooth 75 with the tab in and nothing printed past the last column) and `docs/physics.md` §5 and §7 corrected: the key goes down 93% of its travel (92.5% while held); a second letter prints over the last one if struck within 15 ms at 3.2 N, 34 ms at 8 N, or 8 to 41 ms after it at 14 N; the last letter is lost to a space bar pressed within 4.5 ms at 2.2 N, 13.5 ms at 8 N, 16 ms at 14 N, or to a second letter struck with 14 N within 7 ms. |
 | F26 | From about 55 N a key prints its capital as well, in the middle of a line (item 5, outside the review's scope) | Accepted as real, not repaired, recorded as a limit. Measured: the platen is a linear spring and damper and nothing else stops the typebar, so at 50 N on the key the type sinks 1.4 mm into it and the other character on the slug reaches the paper (not yet at 48 N). That is eight times the hardest touch the interface offers; a stiffening platen would move every calibrated impact number. | `docs/physics.md` §7 states the range the model is checked for and what happens beyond it. |
 
@@ -306,6 +306,57 @@ I reviewed commit c980360. HEAD has since moved to 3656f6f, but nothing in src/ 
 
 On `7ebf546` (the code) together with the documentation of the commit that adds this section: `npm run check` (type check and 46 tests, all passing) and `npm run build`. The new test fails on the rule of `c980360` ("57 N pressed 155 substeps on: with the carriage past the trip point the tab is in") and passes now. The reviewer's reproduction was run before and after the repair: before, 3 trips, the dog on tooth 76 and the next letter at column 11.007 (57 N held; the same at 60 N); after, 1 trip, tooth 75 and column 10.007. The snapshot test was run on a scratch copy with one saved trip-lock item left out of the restore at a time (results under F24). The corrected numbers come from 360 timed pairs and 14 single strokes on `7ebf546`. A Node benchmark of a typing burst reads 12.5 µs per solved substep, no slower than before the repair. In a headless browser at 1920×1080: `scripts/smoke.sh` twice (text right and no console errors both times; 0.82 of real time at 74 frames a second right after the build had finished, 0.99 at 230 frames a second a few minutes later); `scripts/walk-tour.sh` (all 18 steps finish, no console errors), and the picture of the trip-lock step looked at: typebar K at 88° of 100°, the rocker at 50 of the 79 mrad it takes to trip, one letter printed. The reviewer's own scripts were not re-run.
 
+## Check of the repairs
+
+The same reviewer was resumed, with its context, to check the repairs at commit `70313c9` (code of `7ebf546`): the new rule, whether the new test can fail, the snapshot moments, and a sample of the corrected numbers. It did not run the full suite, the build or the browser gates, and did not read the README, the devlog or this record.
+
+### Its report
+
+Unchanged, except that the absolute path of its scratch folder is shortened to `<scratch>/review3/`.
+
+**Follow-up on the trip-lock repair, commit 70313c9 (code from 7ebf546)**
+
+The repair holds: nothing tripped, printed or shifted the next line on the new rule. One documentation claim about snapshots is wrong.
+
+**Wrong**
+1. **The §6 snapshot sentence is wrong about "the place the carriage was stopped" (Low).** That place is only worked out again when the finger's switch is also forgotten. If the restore leaves out only `tripBlock.bound = s.trip.bound`, a stale value stays in force.
+   - Scenario: `placeCarriage(74)`, A, then B at 14 N 1672 substeps later. The carriage is caught 0.21 µm short of cTrip, and I took the snapshot 40 substeps after that. In between, a keystroke at column 40 leaves the place at cTrip − 20 µm. Restoring with only the place forgotten diverges from the first substep, and the carriage is 14.9 mm off after 800 substeps.
+   - The real restore, and a restore forgetting both switches and the place, both match for all 800 substeps.
+   - The snapshot test misses this (mutation green) because its moment catches the carriage at exactly cTrip − 20 µm, which is what any stale value holds.
+   - So I agree that the two switches cannot be detected, but not that the place cannot.
+2. **Nit:** §7 says "a second letter struck with 14 N within 7 ms"; I measured 0–7.5 ms (in 0.5 ms steps).
+
+**Correct**
+- **The repair:**
+  - The hunt from 24 to 60 N found the same 34 coincident substeps as before. I replayed all 34 both let go and held 50 ms, 68 runs. In every one, the tab was in whenever the carriage was past cTrip, nothing tripped or entered past it, only a@74.006 printed, the machine came to rest on tooth 75 in 0.10–0.17 s, and Z printed at 10.007 after a return.
+  - When the tab comes in, the rocker is at most 2.55 mrad past its stop, never more than 0.96 of that substep's swing. After that it stays exactly at the stop.
+  - Kinetic energy falls by 17–64 mJ in that substep, and the rocker rebounds at 12.6 rad/s at most, about 0.1 of its approach speed.
+  - The 16 cases from my first report: one trip each, dog on 75, Z at 10.007.
+- **The new test** passes on 70313c9. It fails for the right reason under both mutations:
+  - old rule: "57 N pressed 155 substeps on: with the carriage past the trip point the tab is in";
+  - tolerance 0: the same message at "36 N pressed 40 substeps on".
+- **The snapshot test** fails without `tripArmed` ("one knock, reported once"), and passes when the switches or the place are forgotten.
+- **Documentation spot checks**, all matching:
+  - 60 N: rocker 2.47 mrad past, within a 3.14 mrad swing; 57 N: 2.05 mrad.
+  - Key travel 92.7% at deepest, 92.48% while held.
+  - At 50 N the type sinks 1.40 mm and prints its capital 1.64 lines above at ink 0.87; at 48 N it prints none.
+  - Letter lost when the space bar follows it within 4.5, 13.5 and 16 ms (2.2, 8 and 14 N).
+
+**Not checked:** the full suite, build and browser gates; keys other than B; the bisection below 24 N; README, devlog and the review record.
+
+Scripts and outputs are in `<scratch>/review3/` (h.ts, h1.out, h2.out, mut2.sh, mut2.out).
+
+`git status --short`: (empty)
+
+### Findings and disposition
+
+| ID | Finding | Disposition and reason | Repair or follow-up |
+|---|---|---|---|
+| F27 | The place where the rocker's finger stopped the carriage is real saved state, not something the machine works out again, and the snapshot test could not see it being forgotten (follow-up item 1) | Accepted. It is recomputed only when the stop's switch is off; the test's moment caught the carriage at the one distance every stale value also holds. | A twelfth moment in "snapshots are complete at awkward moments…": a 14 N key timed ten substeps ahead of the tab catches the carriage a few micrometres short of the trip point, and before the restore the machine is driven on to a keystroke on the next line, which leaves a different place behind. Run again on a scratch copy with one item left out at a time: forgetting the place now fails the test, as forgetting the knock report does; forgetting either switch, or both switches and the place together, still passes, which is the recomputation. `docs/physics.md` §6 corrected. |
+| F28 | §7 gave 7 ms for the window in which a 14 N second letter overtakes the last one; measured in half-millisecond steps it is 7.5 ms (item 2) | Accepted. | `docs/physics.md` §7 corrected. |
+
+Checked on the commit that adds this section: `npm run check` (type check and 46 tests, all passing), and the run with one saved item left out at a time described under F27. Only a test and documentation changed, so the build and the browser gates were not run again.
+
 ## Round outcome
 
-The trip lock held for everything the interface can do and for strokes up to 14 N in the reviewer's 477 timings; snapshots replayed exactly in 789 trials, and its documented geometry was reproduced. Its one hole needed a blow of 25 N or more arriving within one substep of the tab; it is closed, with a test that fails without the repair (F22, F23). The snapshot test now covers the lock (F24), the documented timing windows are restated by force (F25), and a limit of the platen model at about 50 N is recorded (F26).
+The trip lock held for everything the interface can do and for strokes up to 14 N in the reviewer's 477 timings; snapshots replayed exactly in 789 trials, and its documented geometry was reproduced. Its one hole needed a blow of 25 N or more arriving within one substep of the tab; it is closed, with a test that fails without the repair (F22, F23), and the reviewer found the repair to hold in 68 replays at the coincident substeps. The snapshot test now covers the lock, including the one item the first attempt could not see (F24, F27), the documented timing windows are restated by force (F25, F28), and a limit of the platen model at about 50 N is recorded (F26). The last two repairs (a test moment and two sentences) were not sent back for a further check.

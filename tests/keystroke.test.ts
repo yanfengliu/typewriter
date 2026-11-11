@@ -198,9 +198,10 @@ const fingerprint = (tw: Typewriter): string => JSON.stringify({
 
 /**
  * Take a snapshot at the moment `reach` leaves the machine in, play `future` and record where it ends. Then drive
- * the machine somewhere quite different, restore, play the same future again: it must end in exactly the same place.
+ * the machine somewhere quite different (and on from there, if `away` is given), restore, play the same future
+ * again: it must end in exactly the same place.
  */
-function replays(reach: (tw: Typewriter) => void, future: (tw: Typewriter) => void): void {
+function replays(reach: (tw: Typewriter) => void, future: (tw: Typewriter) => void, away: (tw: Typewriter) => void = () => {}): void {
   const tw = new Typewriter();
   reach(tw);
   const snap = tw.snapshot(), marks = tw.marks.length;
@@ -214,6 +215,7 @@ function replays(reach: (tw: Typewriter) => void, future: (tw: Typewriter) => vo
   tw.keyDown('ShiftLeft', { hold: true, force: 5.5 }); tw.advance(0.2);
   tw.keyDown('KeyQ'); tw.advance(0.02);
   tw.returnCarriage(); tw.advance(0.12);
+  away(tw);
   tw.restore(snap);
   assert.equal(tw.marks.length, marks, 'marks made after the snapshot are gone');
   tw.events = [];
@@ -324,6 +326,30 @@ test('snapshots are complete at awkward moments: mid-impact, asleep, mid-return,
     until(tw, () => c.tripBlock.active, 0.5);
     assert.ok(!tw.tripLockIn && c.rocker.q > TRIP_LOCK.angle);
   }, (tw) => { tw.advance(0.05); tw.keyUp('Space'); tw.advance(0.5); assert.ok(tw.tripLockIn && Math.abs(tw.column - MARGIN.right) < 1e-3 && tw.idle); });
+  // The same stop, with the carriage caught in its last few micrometres: a second, harder key swings the rocker out
+  // just before the tab would have arrived, and the finger stops the carriage where it stands. That place is
+  // remembered, not worked out again, so the machine is first driven on to where an ordinary keystroke leaves a
+  // different one behind.
+  replays((tw) => {
+    const c = tw.core, ct = c.limits.cTrip, ang = TRIP_LOCK.angle;
+    tw.placeCarriage(MARGIN.right - 1); tw.advance(0.05);
+    const still = tw.snapshot();
+    // How many substeps a 14 N blow takes to bring the rocker to the tab's angle, and the last letter to bring the tab.
+    tw.keyDown('KeyB', { force: 14 });
+    let flight = 0;
+    for (let r0 = 0; flight < 4000;) { r0 = c.rocker.q; tw.step(); flight++; if (r0 <= ang && c.rocker.q > ang) break; }
+    tw.restore(still);
+    tw.keyDown('KeyA');
+    const pressed = tw.snapshot();
+    let cross = 0;
+    while (c.carriage.q <= ct && cross < 6000) { tw.step(); cross++; }
+    tw.restore(pressed);
+    for (let i = 0; i < cross - flight - 10; i++) tw.step();
+    tw.keyDown('KeyB', { force: 14 });
+    until(tw, () => c.tripBlock.active, 0.1);
+    assert.ok(c.tripBlock.bound > ct - 1.5e-5 && c.tripBlock.bound < ct, `caught ${((ct - c.tripBlock.bound) * 1e6).toFixed(1)} µm short of the trip point`);
+  }, (tw) => { tw.advance(0.4); assert.ok(tw.tripLockIn && Math.abs(tw.column - MARGIN.right) < 1e-3 && tw.marks.length === 2); },
+  (tw) => { tw.advance(1); tw.keyUp('ShiftLeft'); tw.advance(0.3); tw.keyDown('KeyZ'); tw.advance(0.3); assert.ok(Math.abs(tw.column - (MARGIN.left + 1)) < 1e-3, 'a letter was typed on the next line'); });
 });
 
 test('restoring from the middle of an impact leaves no stale contact behind', () => {
