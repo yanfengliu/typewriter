@@ -22,6 +22,8 @@ export interface StepView {
   slice?: number | null;
   /** Left face of the slab when slicing (see ViewModes.sliceBack). */
   sliceBack?: number | null;
+  /** Draw the force arrows. */
+  forces?: boolean;
 }
 
 export interface TourCtl {

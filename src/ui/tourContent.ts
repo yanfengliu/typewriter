@@ -93,8 +93,9 @@ export const TOUR: TourStep[] = [
     chapter: 'One keystroke', title: '1 · The finger moves a lever',
     body: `<p>We press <b>H</b>, slowed 40 times, with the other 43 keys hidden.</p>
       <p>The key lever is a long steel bar pivoting at the <b>very back</b> of the machine. Your finger pushes its front end down. The lever itself only turns about 3°.</p>
-      <p>Hanging from the middle of the lever is a short wire, the <b>key link</b>. It is the first thing the lever pulls.</p>`,
-    view: { shot: side(0.03, 0.08, 0.74), slice: CUT, shell: 'hidden', focus: ['keys', 'typeaction'], solo: KEY, highlight: [`lever:${KEY}`, `link1:${KEY}`] },
+      <p>Hanging from the middle of the lever is a short wire, the <b>key link</b>. It is the first thing the lever pulls.</p>
+      <p>The arrows are forces the simulation is computing right now: blue for the finger, orange for the pull in each link.</p>`,
+    view: { shot: side(0.03, 0.08, 0.74), slice: CUT, forces: true, shell: 'hidden', focus: ['keys', 'typeaction'], solo: KEY, highlight: [`lever:${KEY}`, `link1:${KEY}`] },
     speed: 0.025, run: stroke(0, 1), readouts: [R.depth, R.finger, R.bar],
   },
   {
@@ -102,7 +103,7 @@ export const TOUR: TourStep[] = [
     body: `<p>The key link pulls the short arm of the <b>sub-lever</b> (a bell crank). Its long arm swings forward much further, and pulls the <b>draw link</b>.</p>
       <p>The draw link is hooked to the typebar's <b>heel</b>, only 10 mm from the pivot, so a small pull swings the long bar a long way. Each stage trades force for distance.</p>
       <p>Compare the two speeds below: the type face is already moving about <b>eight times faster</b> than your fingertip.</p>`,
-    view: { shot: side(0.035, 0.09, 0.46), slice: CUT, shell: 'hidden', focus: ['keys', 'typeaction'], solo: KEY, highlight: [`sub:${KEY}`, `link2:${KEY}`, `bar:${KEY}`] },
+    view: { shot: side(0.035, 0.09, 0.46), slice: CUT, forces: true, shell: 'hidden', focus: ['keys', 'typeaction'], solo: KEY, highlight: [`sub:${KEY}`, `link2:${KEY}`, `bar:${KEY}`] },
     speed: 0.025, run: stroke(1, 2), readouts: [R.depth, R.bar, R.finger, R.speed, R.link],
   },
   {
@@ -126,7 +127,7 @@ export const TOUR: TourStep[] = [
     body: `<p>Slowed 400 times, and frozen at the instant of greatest pressure. The type slug has passed through the guide and hit the ribbon, paper and rubber platen at about <b>4 metres per second</b>.</p>
       <p>The contact lasts about a third of a millisecond and peaks near <b>90 newtons</b>, thirty times what your finger pressed with. This is why the stroke must be a quick tap: the linkage does not <em>press</em> the type on the paper, it <em>throws</em> it. Momentum makes the mark.</p>
       <p>Next, the rubber throws the bar back.</p>`,
-    view: { shot: side(-0.016, 0.166, 0.1), slice: 0.0125, sliceBack: -0.0125, shell: 'hidden', focus: ['typeaction', 'ribbon', 'feed', 'paper'], solo: KEY, highlight: [`bar:${KEY}`] },
+    view: { shot: side(-0.016, 0.166, 0.1), slice: 0.0125, sliceBack: -0.0125, forces: true, shell: 'hidden', focus: ['typeaction', 'ribbon', 'feed', 'paper'], solo: KEY, highlight: [`bar:${KEY}`] },
     speed: 0.0025, run: stroke(4, 5), readouts: [R.speed, R.force, R.ribbon, R.fingerWork],
   },
   {
@@ -134,7 +135,7 @@ export const TOUR: TourStep[] = [
     body: `<p>The typebar falls away and the universal bar follows it home, so the rocker rocks back.</p>
       <p>The loose dog slides into the wheel again, now <b>behind the next tooth</b>. Then the fixed dog slides out. Nothing holds the wheel, so the mainspring pulls the carriage and the wheel turns until that next tooth lands on the loose dog and pushes it back onto its stop.</p>
       <p>One tooth is exactly <b>one tenth of an inch</b> of carriage travel: one letter space. Your finger did not move the carriage; the spring did.</p>`,
-    view: { shot: { pos: [0.035, 0.118, -0.25], target: [0, 0.112, -0.096] }, shell: 'hidden', focus: ['escapement', 'carriage'], solo: KEY, highlight: ['looseDog'] },
+    view: { shot: { pos: [0.035, 0.118, -0.25], target: [0, 0.112, -0.096] }, forces: true, shell: 'hidden', focus: ['escapement', 'carriage'], solo: KEY, highlight: ['looseDog'] },
     speed: 0.02, run: stroke(5, 6), readouts: [R.dogs, R.column, R.spring],
   },
   {
@@ -150,7 +151,7 @@ export const TOUR: TourStep[] = [
     body: `<p>At the back left is a drum with a <b>clock spring</b> coiled inside. A band from the drum runs under the carriage to its far end and pulls it to the left with about 9 N, all the time.</p>
       <p>The rack under the carriage turns a small pinion on the escape wheel's shaft, so the escapement is all that stops the carriage sliding away. Each keystroke lets it go one tooth.</p>
       <p>Here it types a few letters at quarter speed. Watch the drum wind the band in, and the stored energy fall.</p>`,
-    view: { shot: 'drum', shell: 'hidden', focus: ['carriage', 'escapement'], highlight: ['drum', 'drawBand', 'escapeWheel', 'pinion'] },
+    view: { shot: 'drum', forces: true, shell: 'hidden', focus: ['carriage', 'escapement'], highlight: ['drum', 'drawBand', 'escapeWheel', 'pinion'] },
     speed: 0.25, run: async (c) => { type(c, 'spring'); await c.playTo(() => quiet(c), 4); }, readouts: [R.column, R.spring],
   },
   {

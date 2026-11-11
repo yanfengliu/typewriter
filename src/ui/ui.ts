@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import type { App } from '../app';
 import { ViewModes, ShellMode } from '../view/modes';
+import { ForceView, FORCE_LEGEND } from '../view/forces';
 import { Part, Sys, SYS_COLOR, SYS_LABEL } from '../view/rig';
 import { CameraRig } from './camera';
 import { Sound } from './sound';
@@ -28,6 +29,8 @@ export class UI implements TourHost {
   readonly replay: Replay;
   readonly scope: Scope;
   readonly tour: Tour;
+  readonly forces: ForceView;
+  private forceLegend = h('ul', { class: 'legend forces', hidden: true }, ...FORCE_LEGEND.map(([color, text]) => h('li', {}, h('i', { style: { background: color } }), text)), h('li', { class: 'hint' }, 'Arrow length grows with the square root of the force. Live only: use slow motion.'));
   private root: HTMLElement;
   private tooltip = h('div', { class: 'tooltip', hidden: true });
   private toast = h('div', { class: 'toast', hidden: true, role: 'status' });
@@ -45,6 +48,7 @@ export class UI implements TourHost {
   private sliceSl!: { row: HTMLElement; set: (v: number) => void };
   private focusBtns: HTMLButtonElement[] = [];
   private colorTg!: { el: HTMLButtonElement; set: (v: boolean) => void };
+  private forceTg!: { el: HTMLButtonElement; set: (v: boolean) => void };
   private showLabels = false;
   private hovered: Part | null = null;
   private selected: Part | null = null;
@@ -63,6 +67,7 @@ export class UI implements TourHost {
     this.replay = new Replay(app);
     this.scope = new Scope(app);
     this.tour = new Tour(app, this, TOUR);
+    this.forces = new ForceView(app);
     app.onReset.push(() => { this.replay.reset(); this.scope.reset(); });
     for (const k of app.tw.keys) { this.byChar.set(k.lower, { code: k.code, shift: false }); this.byChar.set(k.upper, { code: k.code, shift: true }); }
     this.root = document.getElementById('ui')!;
@@ -93,7 +98,7 @@ export class UI implements TourHost {
     cv.addEventListener('pointerup', (e) => { if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5) this.click(e); down = null; });
     cv.addEventListener('pointermove', (e) => { if (e.buttons === 0) this.hover(e); });
     cv.addEventListener('pointerleave', () => this.setHover(null));
-    app.onFrame.push((dt) => this.frame(dt));
+    app.onFrame.push((dt, simDt) => this.frame(dt, simDt));
     this.updateStatus();
   }
 
@@ -113,6 +118,9 @@ export class UI implements TourHost {
     m.slice = v.slice ?? null;
     m.sliceBack = v.sliceBack ?? null;
     this.sliceSl.set(0);
+    this.forces.enabled = v.forces ?? false;
+    this.forceTg.set(this.forces.enabled);
+    this.forceLegend.hidden = !this.forces.enabled;
     this.tourHi = (v.highlight ?? []).map((id) => this.app.rig.byId.get(id)).filter((p): p is Part => !!p);
     this.applyHighlight();
     m.invalidate();
@@ -152,13 +160,15 @@ export class UI implements TourHost {
     this.colorTg = toggle('Colour by job', false, (v) => { m.colorBySystem = v; m.invalidate(); }, 'Tint each part by the job it does');
     const labelsTg = toggle('Labels', false, (v) => { this.showLabels = v; if (!v) this.labelLayer.replaceChildren(), this.labels.clear(); }, 'Name the main parts');
     const scopeTg = toggle('Instruments', false, (v) => { this.scope.el.hidden = !v; }, 'Chart the last keystroke and the energy ledger');
+    const forceTg = this.forceTg = toggle('Forces', false, (v) => { this.forces.enabled = v; this.forceLegend.hidden = !v; }, 'Draw the forces the solver computes: finger, links, impact, spring');
     const shots: Array<[string, string]> = [['typist', 'Typist'], ['side', 'Side'], ['top', 'Top'], ['rear', 'Rear'], ['linkage', 'Linkage'], ['print', 'Print point'], ['escapement', 'Escapement'], ['drum', 'Spring']];
     const right = h('aside', { class: 'panel look', 'aria-label': 'Look inside' },
       h('h3', {}, 'Look inside'),
       h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'Body'), this.shellSeg.el),
       h('div', { class: 'lbl' }, 'Focus on'), focusRow,
       this.explodeSl.row, slice.row,
-      h('div', { class: 'chips' }, this.colorTg.el, labelsTg.el, scopeTg.el),
+      h('div', { class: 'chips' }, this.colorTg.el, labelsTg.el, scopeTg.el, forceTg.el),
+      this.forceLegend,
       h('div', { class: 'lbl' }, 'Camera'),
       h('div', { class: 'chips' }, ...shots.map(([id, label]) => h('button', { type: 'button', class: 'chip', onclick: () => this.cam.go(id) }, label))),
     );
@@ -331,12 +341,13 @@ export class UI implements TourHost {
     if (typist.pending) parts.push(`${typist.pending} keystroke${typist.pending > 1 ? 's' : ''} waiting`);
     if (typist.lineLocked) parts.push('End of line: the keys are locked. Press Enter to return the carriage.');
     if (this.app.achieved < 0.9 && !this.app.paused) parts.push('Running slower than real time on this device');
+    if (!tw.marks.length && !typist.pending && !this.tour.active) parts.push('Just type. Enter returns the carriage; the guided tour explains every part.');
     this.status.textContent = parts.join('  ·  ');
     this.status.classList.toggle('warn', typist.lineLocked);
   }
 
   // --- Per frame ----------------------------------------------------------------------------------
-  private frame(dt: number): void {
+  private frame(dt: number, simDt: number): void {
     const app = this.app, tw = app.tw;
     for (const e of tw.events) { this.sound.play(e, app.timeScale); this.tour.observe(e.type); if (e.type === 'locked') this.say('End of line: press Enter to return the carriage.'); }
     tw.events = [];
@@ -345,6 +356,7 @@ export class UI implements TourHost {
     this.scope.cursor = this.replay.active ? this.replay.timeAt(this.replay.cursor) : null;
     this.cam.update(dt);
     this.modes.update(dt);
+    this.forces.update(simDt, !this.replay.active);
 
     // Fingers and the returning hand, live or from the recording.
     const live = !this.replay.active;

@@ -106,3 +106,5 @@ input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--accent); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .note { color: var(--accent); min-width: 0; }
+.legend.forces { font-size: 12px; margin: 0 0 10px; }
+.legend.forces li { margin-bottom: 2px; }
