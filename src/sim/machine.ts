@@ -358,8 +358,13 @@ export class Typewriter {
     if (block && !c.lockBlock.enabled) c.lockBlock.bound = Math.min(LOCK_ENGAGE, Math.max(LOCK_ENGAGE - 2e-5, c.lockBar.q));
     c.lockBlock.enabled = block;
 
+    // Exactly one of the pair can act at any time, so that the parts never pass through each other. The finger can
+    // only stop a carriage that is still short of the trip point, so once the carriage is past it the tab is in,
+    // wherever the rocker stands. When both arrive in the same substep the rocker is then past its stop by at most
+    // one substep of its travel (3 mrad under a 60 N blow) and is put back on it with its rebound, as in any contact
+    // found a substep late.
     const past = c.carriage.q > c.limits.cTrip;
-    c.tripLock.enabled = past && (c.tripLock.enabled || c.rocker.q <= TRIP_LOCK.angle + 2e-3);
+    c.tripLock.enabled = past;
     const wait = !past && c.rocker.q > TRIP_LOCK.angle;
     if (wait && !c.tripBlock.enabled) c.tripBlock.bound = Math.min(c.limits.cTrip, Math.max(c.limits.cTrip - 2e-5, c.carriage.q));
     c.tripBlock.enabled = wait;

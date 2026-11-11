@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Typewriter } from '../src/sim/machine';
-import { CHAR_PITCH, GLYPH_PITCH, MARGIN, R_SEG, TRAVEL, trainPose } from '../src/sim/layout';
+import { CHAR_PITCH, GLYPH_PITCH, MARGIN, R_SEG, TRAVEL, TRIP_LOCK, trainPose } from '../src/sim/layout';
 import { SPEC } from '../src/sim/mechanism';
 import { TRAIN } from '../src/sim/typeaction';
 import type { Rod } from '../src/sim/elements';
@@ -238,7 +238,7 @@ test('a snapshot restores the exact state: the future replays bit for bit', () =
   assert.equal(JSON.stringify(tw.marks), end1.marks);
 });
 
-test('snapshots are complete at awkward moments: mid-impact, asleep, mid-return, on the bell cam, against the line lock', () => {
+test('snapshots are complete at awkward moments: mid-impact, asleep, mid-return, on the bell cam, against the line lock and the trip lock', () => {
   const h = (tw: Typewriter) => tw.byCode.get('KeyH')!;
   // The type face is on the paper and the force is already falling: the peak that will become the ink mark is past.
   replays((tw) => {
@@ -303,6 +303,27 @@ test('snapshots are complete at awkward moments: mid-impact, asleep, mid-return,
     tw.advance(0.15);
     assert.ok(h(tw) && tw.byCode.get('KeyJ')!.lock.active, 'J is standing on the lock');
   }, (tw) => { tw.advance(0.1); tw.keyUp('KeyJ'); tw.keyUp('Space'); tw.advance(0.3); tw.keyDown('Backspace', { force: 4.5 }); tw.advance(0.4); tw.keyDown('KeyJ'); tw.advance(0.4); assert.equal(tw.marks.length, 1); });
+  // The trip lock. A key that slipped past the comb during the last step is pressing the universal bar against the
+  // locked rocker: the knock has been reported, and must not be reported again when the future is replayed.
+  replays((tw) => {
+    tw.placeCarriage(MARGIN.right - 1); tw.advance(0.05);
+    tw.keyDown('KeyA'); tw.advance(0.06);
+    tw.keyDown('KeyB', { hold: true, force: 5 });
+    until(tw, () => tw.core.tripLock.active && count(tw, 'locked') === 1);
+    tw.advance(0.3); // the typebar bounces off the universal bar a few times before the finger holds it there
+    assert.ok(tw.tripLockIn && tw.core.tripLock.active && tw.marks.length === 1, 'B holds the rocker against the tab');
+  }, (tw) => { tw.advance(0.1); assert.equal(count(tw, 'locked'), 0, 'one knock, reported once'); tw.keyUp('KeyB'); tw.advance(0.4); assert.ok(tw.lineLockIn && tw.idle); });
+  // Its other stop, in the substep the two parts meet: the space bar has been let up only part of the way, the rocker
+  // hovers short of home, and the carriage has just run against the rocker's finger.
+  replays((tw) => {
+    const c = tw.core;
+    tw.placeCarriage(MARGIN.right - 1); tw.advance(0.05);
+    tw.keyDown('Space', { servo: true });
+    for (let i = 1; i <= 130; i++) { tw.servoDepth.set('Space', i * 0.0001); tw.advance(0.004); }
+    for (let depth = 0.013; depth > 0.004 && (c.state.fixedIn || c.rocker.q > 0.068);) { depth -= 0.00005; tw.servoDepth.set('Space', depth); tw.advance(0.004); }
+    until(tw, () => c.tripBlock.active, 0.5);
+    assert.ok(!tw.tripLockIn && c.rocker.q > TRIP_LOCK.angle);
+  }, (tw) => { tw.advance(0.05); tw.keyUp('Space'); tw.advance(0.5); assert.ok(tw.tripLockIn && Math.abs(tw.column - MARGIN.right) < 1e-3 && tw.idle); });
 });
 
 test('restoring from the middle of an impact leaves no stale contact behind', () => {

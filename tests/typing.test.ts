@@ -233,7 +233,7 @@ test('a stroke that slips past the comb during the last step cannot trip the esc
       tw.keyDown('KeyA');
       tw.advance(delay / 1000);
       tw.keyDown(second, { force: second === 'Space' ? 2.2 : 3.2 });
-      rest(r, () => { if (tw.tripLockIn) assert.ok(tw.core.rocker.q < ESC.fixedIn / ESC.dogR, `${say}: the rocker never reaches the angle that lets the fixed dog in`); }, 3);
+      rest(r, () => { if (tw.core.carriage.q > tw.core.limits.cTrip) assert.ok(tw.tripLockIn && tw.core.rocker.q < ESC.fixedIn / ESC.dogR, `${say}: past the trip point the tab is in and the rocker never reaches the angle that lets the fixed dog in`); }, 3);
       assert.equal(count(tw, 'trip'), 1, `${say}: only the last letter trips the escapement`);
       assert.equal(tw.marks.length, 1, `${say}: nothing else prints`);
       assert.ok(Math.abs(tw.column - MARGIN.right) < 1e-3 && dogAt(r) === MARGIN.right && tw.tripLockIn, `${say}: the carriage stands on its tooth with the tab in`);
@@ -296,6 +296,85 @@ test('if the rocker is still swung out when the tab arrives, the carriage waits 
   rest(r);
   assert.ok(Math.abs(tw.column - MARGIN.right) < 1e-3 && dogAt(r) === MARGIN.right && tw.tripLockIn, 'let go, it finishes the step and the tab goes in');
   assert.equal(count(tw, 'trip'), 1);
+});
+
+test('a hard blow that reaches the rocker in the very substep the tab arrives is caught all the same', () => {
+  // Which of the two stops acts is decided before every substep from where the parts stand, and that rule must never
+  // leave both off. A blow of 25 N or more moves the rocker over 2 mrad in one 25 µs substep; when that was also the
+  // substep in which the carriage passed the trip point, neither stop came on, the escapement tripped past the trip
+  // point, and a key held down left the next line one column in (found by the trip lock's review). Here the press
+  // is timed to the substep for several blows, and the substeps either side of it are tried as well.
+  const ang = TRIP_LOCK.angle, fixedIn = ESC.fixedIn / ESC.dogR, forces = [36, 42, 48, 54, 57, 60];
+  // How many substeps each blow takes, from a key at rest, to bring the rocker to the tab's angle.
+  const bench = at(40), still = bench.tw.snapshot();
+  const flights = forces.map((force) => {
+    bench.tw.restore(still);
+    bench.tw.keyDown('KeyB', { force });
+    for (let i = 1; i <= 4000; i++) { const r0 = bench.tw.core.rocker.q; bench.tw.step(); if (r0 <= ang && bench.tw.core.rocker.q > ang) return i; }
+    return 0;
+  });
+  assert.ok(flights.every((n) => n > 0), `every blow reaches the universal bar (${flights.join(', ')} substeps)`);
+  const r = at(MARGIN.right - 1);
+  const { tw } = r, c = tw.core, ct = c.limits.cTrip, lead = Math.max(...flights) + 40;
+  tw.keyDown('KeyA');
+  const pressed = tw.snapshot();
+  let cross = 0;
+  while (c.carriage.q <= ct && cross < 6000) { tw.step(); cross++; }
+  assert.ok(c.carriage.q > ct && cross > lead, 'after the last letter alone, the carriage passes the trip point');
+  tw.restore(pressed);
+  for (let i = 0; i < cross - lead; i++) tw.step();
+  const early = tw.snapshot(); // before the earliest press tried
+  const worst = { past: 0, force: 0, wait: 0 };
+  let over = 0, ties = 0;
+  for (const [n, force] of forces.entries()) {
+    const flight = flights[n];
+    for (let wait = lead - flight - 4; wait <= lead - flight + 4; wait++) {
+      const say = `${force} N pressed ${wait} substeps on`;
+      tw.restore(early);
+      tw.events = [];
+      for (let i = 0; i < wait; i++) tw.step();
+      const trips = count(tw, 'trip'); // the last letter's own, if it came after the snapshot
+      tw.keyDown('KeyB', { force, hold: true });
+      let both = 0;
+      for (let i = 0; i < flight + 240; i++) {
+        const x0 = c.carriage.q, r0 = c.rocker.q;
+        tw.step();
+        if (x0 <= ct && c.carriage.q > ct && r0 <= ang && c.rocker.q > ang) both = c.rocker.q - ang;
+        if (x0 <= ct) continue;
+        // The carriage was already past the trip point when this substep began.
+        assert.ok(tw.tripLockIn, `${say}: with the carriage past the trip point the tab is in`);
+        assert.ok(c.rocker.q < fixedIn && c.state.looseIn && !c.state.fixedIn, `${say}: the rocker stays short of the angle that changes the dogs over (${c.rocker.q.toFixed(4)} rad)`);
+        over = Math.max(over, c.rocker.q - ang);
+      }
+      if (!both) continue;
+      // The tie itself. The key stays down for a while, then is let go.
+      ties++;
+      if (both > worst.past) { worst.past = both; worst.force = force; worst.wait = wait; }
+      tw.advance(0.05);
+      tw.keyUp('KeyB');
+      rest(r, () => {}, 3);
+      assert.equal(count(tw, 'trip'), trips, `${say}: the escapement is not tripped again`);
+      assert.equal(tw.marks.length, 1, `${say}: nothing prints after the last letter`);
+      assert.ok(Math.abs(tw.column - MARGIN.right) < 1e-3 && dogAt(r) === MARGIN.right && tw.tripLockIn, `${say}: the carriage stands on its tooth with the tab in`);
+    }
+  }
+  // Not every blow has such a press (the next substep's press can arrive two substeps later), but several do.
+  assert.ok(ties >= 3, `the presses tried bring the rocker and the tab together in one substep for several of the blows (${ties} of ${forces.length}; flights ${flights.join(', ')} substeps)`);
+  assert.ok(worst.past > 2e-3, `in the worst of them the rocker is well past its stop when the tab arrives (${(worst.past * 1e3).toFixed(2)} mrad)`);
+  assert.ok(over < 1.5e-3, `once the tab is in, the rocker is held at its stop (${(over * 1e3).toFixed(2)} mrad over at most)`);
+  // The worst one again, through a carriage return: the next line starts where it should.
+  tw.restore(early);
+  for (let i = 0; i < worst.wait; i++) tw.step();
+  tw.keyDown('KeyB', { force: worst.force, hold: true });
+  tw.advance(0.05);
+  tw.keyUp('KeyB');
+  rest(r, () => {}, 3);
+  tw.returnCarriage();
+  rest(r, () => {}, 4);
+  tw.keyDown('KeyZ');
+  rest(r);
+  assert.equal(tw.marks.length, 2);
+  assert.ok(Math.abs(col(tw.marks[1]) - MARGIN.left) < 0.03, `the next line starts in the first column (${col(tw.marks[1]).toFixed(3)})`);
 });
 
 test('a key held on a tooth drops into its slot as the comb leaves, without throwing the comb', () => {
