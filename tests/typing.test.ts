@@ -220,6 +220,73 @@ test('a key that is down in its slot holds the lock comb off until it comes up',
   assert.equal(tw.marks.length, 1, 'J itself never printed');
 });
 
+test('a key held on a tooth drops into its slot as the comb leaves, without throwing the comb', () => {
+  // The lever lands in front of the receding comb and becomes a stop for it. That stop must catch the comb where
+  // it stands: switched on a hair further out, it threw the comb back at 0.76 m/s.
+  for (const leave of ['return', 'backspace']) {
+    const r = at(MARGIN.right);
+    const { tw } = r, c = tw.core;
+    tw.keyDown('KeyJ', { hold: true, force: 3.2 });
+    tw.advance(0.2);
+    assert.ok(tw.byCode.get('KeyJ')!.lock.active, 'J is standing on its tooth');
+    if (leave === 'return') tw.returnCarriage(); else tw.keyDown('Backspace', { force: 4.5 });
+    let fastest = 0, blocked = false;
+    for (let i = 0; i < 16000; i++) { tw.step(); fastest = Math.max(fastest, Math.abs(c.lockBar.v)); blocked ||= c.lockBlock.enabled; }
+    assert.ok(blocked, `${leave}: the lever came down in the comb's way`);
+    assert.ok(fastest < 0.2, `${leave}: the comb never moves faster than the carriage pushes it (${fastest.toFixed(3)} m/s)`);
+    tw.keyUp('KeyJ');
+    rest(r, () => {}, 3);
+  }
+});
+
+test('a new sheet can be fed at any moment, even while the return lever is turning the platen', () => {
+  const r = rig();
+  queueText(r, 'one\ntwo');
+  settle(r);
+  const { tw } = r, c = tw.core;
+  tw.returnCarriage();
+  let fastest = 0, fed = false;
+  const t0 = tw.time;
+  while (tw.time - t0 < 1.5) {
+    tw.step();
+    // In the middle of the lever's stroke, with its pawl in the ratchet.
+    if (!fed && c.state.pawlIn && c.platen.v > 3) { tw.newSheet(); fed = true; }
+    fastest = Math.max(fastest, Math.abs(c.platen.v));
+  }
+  assert.ok(fed, 'the sheet was changed with the pawl engaged');
+  assert.ok(fastest < 40, `the platen is not flung (fastest ${fastest.toFixed(1)} rad/s; a line feed reaches about 12)`);
+  assert.equal(tw.marks.length, 0, 'the page is blank');
+  assert.ok(tw.idle && Math.abs(tw.line - 1) < 0.02 && Math.abs(tw.column - MARGIN.left) < 1e-3, `the return finished normally (line ${tw.line.toFixed(3)}, column ${tw.column.toFixed(3)})`);
+  queueText(r, 'x');
+  settle(r);
+  assert.ok(Math.abs(line(tw.marks[0]) - 1) < 0.04 && Math.abs(col(tw.marks[0]) - MARGIN.left) < 0.03, 'and typing goes on, on a line and in the first column');
+  // At rest it simply calls the current line the first one.
+  queueText(r, '\n\n');
+  settle(r);
+  tw.newSheet();
+  assert.ok(Math.abs(tw.line) < 0.02);
+  queueText(r, 'y');
+  settle(r);
+  assert.ok(Math.abs(line(tw.marks[0])) < 0.04 && tw.marks.length === 1);
+});
+
+test('the platen may rest anywhere its friction holds it against the detent, and the machine then rests too', () => {
+  const r = rig();
+  r.tw.advance(0.05);
+  const c = r.tw.core, edge = SPEC.platenFriction / SPEC.detentTorque;
+  for (const part of [0.99, -0.99, 0.5]) {
+    c.platen.q = Math.asin(edge * part) / SPEC.lineTeeth;
+    r.tw.wake('feed');
+    rest(r);
+    assert.ok(Math.abs(Math.sin(SPEC.lineTeeth * c.platen.q) - edge * part) < 1e-9, 'held where it was put');
+  }
+  // A hair beyond that the detent wins and pulls it into the notch.
+  c.platen.q = Math.asin(edge * 1.3) / SPEC.lineTeeth;
+  r.tw.wake('feed');
+  rest(r);
+  assert.ok(Math.abs(Math.sin(SPEC.lineTeeth * c.platen.q)) <= edge + 1e-9, 'pulled back to where friction can hold it');
+});
+
 test('backspace moves the carriage exactly one column wherever it stands and however firmly it is pressed', () => {
   for (const start of [MARGIN.left + 1, 40, MARGIN.right - 1, MARGIN.right]) {
     for (const force of [3.5, 4.5, 7, 10]) {

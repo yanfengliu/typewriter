@@ -49,6 +49,8 @@ export interface Snapshot {
   watch: boolean[];
   held: boolean;
   spaceLock: boolean;
+  /** The comb's stop against a lever in its slot: on or off, and where it caught the comb. */
+  lockBlock: { enabled: boolean; bound: number };
 }
 
 const FLAGS = 5;
@@ -183,7 +185,9 @@ export class Typewriter {
         return Math.abs(c.shift.v) < 2e-3 && Math.abs(c.cradle.v) < 2e-4 && !this.fingerOn('Shift', true) && (this.fingerOn('Shift', false) || c.shift.q < 3e-4);
       case 'space': return !this.fingerOn('Space', false) && c.space.q < 2e-4 && Math.abs(c.space.v) < 2e-3;
       case 'back': return !this.fingerOn('Backspace', false) && c.backspace.q < 2e-4 && Math.abs(c.backspace.v) < 2e-3;
-      case 'feed': return !this.hand.busy && c.lineLever.q < 2e-4 && Math.abs(c.lineLever.v) < 2e-3 && Math.abs(c.platen.v) < 2e-3 && Math.abs(Math.sin(SPEC.lineTeeth * c.platen.q)) < 0.08;
+      // The platen rests wherever its friction can hold it against the detent (the solver sticks it there).
+      case 'feed': return !this.hand.busy && c.lineLever.q < 2e-4 && Math.abs(c.lineLever.v) < 2e-3 && Math.abs(c.platen.v) < 2e-3 &&
+        SPEC.detentTorque * Math.abs(Math.sin(SPEC.lineTeeth * c.platen.q)) <= SPEC.platenFriction;
       // At rest on its spring, or held part-cocked by the cam while the carriage stands on the ramp.
       case 'bell': return Math.abs(c.hammer.v) < 0.08 && (Math.abs(c.hammer.q) < 3e-3 || c.bellCam.active) && (!this.inBellZone() || Math.abs(c.carriage.v) < 2e-4);
     }
@@ -236,8 +240,20 @@ export class Typewriter {
 
   returnCarriage(): void { if (this.hand.busy) return; this.wake('feed'); this.wake('esc'); this.hand.start(); }
 
-  /** Feed in a fresh sheet: clears the ink and rewinds the paper to its first line. */
-  newSheet(): void { this.marks = []; this.core.platen.q = 0; this.core.platen.v = 0; this.detentIndex = 0; this.emit('newSheet'); }
+  /**
+   * Feed in a fresh sheet: clears the ink and counts lines from the one the platen stands on. The platen itself is
+   * not touched: its angle is only renumbered by whole lines, together with everything measured from it, so this
+   * is safe at any moment, including while the return lever's pawl is turning the ratchet.
+   */
+  newSheet(): void {
+    const c = this.core, pitch = (2 * Math.PI) / SPEC.lineTeeth, turned = Math.round(c.platen.q / pitch) * pitch;
+    this.marks = [];
+    c.platen.q -= turned;
+    c.state.pawlLatch -= turned;
+    for (const t of this.trains) for (const s of t.peakState) if (s) s.platen -= turned;
+    this.detentIndex = Math.round(c.platen.q / pitch);
+    this.emit('newSheet');
+  }
 
   /**
    * Set the machine down, at rest, with the carriage at a given column (a demonstration aid: it is the state
@@ -253,6 +269,7 @@ export class Typewriter {
     st.bellArmed = c.carriage.q < c.limits.cBell - SPEC.bellRamp;
     c.hammer.q = 0; c.hammer.v = 0;
     c.lockBar.q = lockRest(c.carriage.q); c.lockBar.v = 0;
+    c.lockBlock.enabled = false;
     this.heldByLoose = true;
   }
 
@@ -325,7 +342,10 @@ export class Typewriter {
       c.spaceLock.enabled = under && (c.spaceLock.enabled || c.space.q <= c.spaceLock.bound + slack);
       if (!c.spaceLock.enabled && c.space.q > c.spaceLock.bound) inSlot = true;
     }
-    c.lockBlock.enabled = inSlot && !under;
+    // The comb is caught where it stands, at most a hair short of the lever's side: switching the stop on never moves it.
+    const block = inSlot && !under;
+    if (block && !c.lockBlock.enabled) c.lockBlock.bound = Math.min(LOCK_ENGAGE, Math.max(LOCK_ENGAGE - 2e-5, c.lockBar.q));
+    c.lockBlock.enabled = block;
   }
 
   private post(): void {
@@ -423,6 +443,7 @@ export class Typewriter {
       trains: this.trains.map((t) => ({ peak: [t.peak[0], t.peak[1]], peakState: [copyImpact(t.peakState[0]), copyImpact(t.peakState[1])], approach: t.approach, lock: t.lock.enabled })),
       groups: GROUP_ORDER.map((name) => ({ awake: this.core.groups[name].awake, quiet: this.core.groups[name].quiet })),
       flags, watch: this.watchers().map((w) => w.was), held: this.heldByLoose, spaceLock: this.core.spaceLock.enabled,
+      lockBlock: { enabled: this.core.lockBlock.enabled, bound: this.core.lockBlock.bound },
     };
   }
 
@@ -452,6 +473,8 @@ export class Typewriter {
     });
     this.awakeTrains = this.trains.filter((t) => t.awake);
     this.core.spaceLock.enabled = s.spaceLock;
+    this.core.lockBlock.enabled = s.lockBlock.enabled;
+    this.core.lockBlock.bound = s.lockBlock.bound;
     const b = this.sys.bodies, cons = this.sys.constraints;
     for (let i = 0; i < this.permanent; i++) { b[i].q = s.q[i]; b[i].v = s.v[i]; }
     // Contact state belongs to the moment being restored, not the one being left: pre-step logic reads it

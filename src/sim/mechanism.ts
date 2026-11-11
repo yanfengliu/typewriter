@@ -192,8 +192,9 @@ export function buildCore(sys: System): Core {
     () => { const d = squeeze(); if (d > 0) { lockBar.f += SPEC.lockBufferK * d; carriage.f -= SPEC.lockBufferK * d; } },
     () => { const d = squeeze(); return d > 0 ? 0.5 * SPEC.lockBufferK * d * d : 0; },
   ), 'lockBuffer');
-  // A key lever that is down in its slot stands in the comb's way (switched by the machine, see lockLogic).
-  const lockBlock = G.c(new Limit(lockBar, LOCK_ENGAGE - 2e-5, -1), 'lockBlock');
+  // A key lever that is down in its slot stands in the comb's way. Switched and placed by the machine (see
+  // lockLogic), so it is not in the group's list: waking the group must not switch it on.
+  const lockBlock = sys.add(new Limit(lockBar, LOCK_ENGAGE, -1), 'lockBlock');
   lockBlock.enabled = false;
 
   // --- Carriage: shift cradle, platen, line-space lever ------------------------------------------
