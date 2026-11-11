@@ -20,7 +20,7 @@ const FOCUS: Array<[string, Sys[] | null]> = [
   ['Everything', null], ['Type action', ['keys', 'typeaction']], ['Escapement', ['escapement', 'carriage']], ['Ribbon', ['ribbon', 'typeaction']],
   ['Shift', ['shift', 'feed', 'paper']], ['Line feed', ['feed', 'carriage', 'paper', 'shift']], ['Bell', ['bell', 'carriage']],
 ];
-const LABELLED = ['lever:KeyG', 'sub:KeyG', 'bar:KeyG', 'link2:KeyG', 'segment', 'ubar', 'rocker', 'escapeWheel', 'drum', 'truck', 'platen', 'lineLever', 'vibrator', 'shiftFrame', 'spaceBar', 'bell', 'ribbonLever', 'cradle'];
+const LABELLED = ['lever:KeyG', 'sub:KeyG', 'bar:KeyG', 'link2:KeyG', 'segment', 'ubar', 'rocker', 'escapeWheel', 'drum', 'truck', 'platen', 'lineLever', 'vibrator', 'shiftFrame', 'spaceBar', 'bell', 'ribbonLever', 'cradle', 'lockComb'];
 
 export class UI implements TourHost {
   readonly modes: ViewModes;
@@ -344,7 +344,8 @@ export class UI implements TourHost {
     const { tw, typist } = this.app;
     const parts: string[] = [];
     if (this.replay.active) parts.push(`Replay: ${((this.replay.timeAt(this.replay.cursor) - this.replay.timeAt(this.replay.length - 1)) * 1000).toFixed(1)} ms`);
-    parts.push(`Line ${Math.round(tw.line) + 1}, column ${Math.round(tw.column - MARGIN.left) + 1} of ${MARGIN.right - MARGIN.left}`);
+    const width = MARGIN.right - MARGIN.left, column = Math.round(tw.column - MARGIN.left) + 1;
+    parts.push(column > width ? `Line ${Math.round(tw.line) + 1}, full (${width} columns)` : `Line ${Math.round(tw.line) + 1}, column ${column} of ${width}`);
     if (typist.pending) parts.push(`${typist.pending} keystroke${typist.pending > 1 ? 's' : ''} waiting`);
     if (typist.lineLocked) parts.push('End of line: the keys are locked. Press Enter to return the carriage.');
     if (tw.line > 55) parts.push('Near the bottom of the sheet: New sheet feeds in fresh paper.');

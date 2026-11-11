@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import type { Typewriter } from '../../sim/machine';
 import {
-  F, GLYPH_PITCH, KEY_FULCRUM, KeyGeom, P0, PHI_MAX, R_SEG, SHANK_REAR, SLUG, SUBLEVER, TRAVEL, U, UBAR_R, UBAR_REST_F, X,
+  F, GLYPH_PITCH, KEY_FULCRUM, KEY_LEVER_HALF, KEY_LEVER_T, KeyGeom, P0, PHI_MAX, R_SEG, SHANK_REAR, SLUG, SUBLEVER, TRAVEL, U, UBAR_R, UBAR_REST_F, X,
 } from '../../sim/layout';
 import { Vec3, add, addScaled, rotateAbout, scale, sub, dot } from '../../sim/vec';
 import { MAT, Rig } from '../rig';
@@ -98,7 +98,7 @@ export function buildTypeAction(rig: Rig, tw: Typewriter, legendMat: THREE.Mater
 
   tw.trains.forEach((t, i) => {
     const k = t.geom, code = k.code;
-    const yBar0 = KEY_FULCRUM.y - 0.0035, yBar1 = KEY_FULCRUM.y + 0.0035;
+    const yBar0 = KEY_FULCRUM.y - KEY_LEVER_HALF, yBar1 = KEY_FULCRUM.y + KEY_LEVER_HALF;
     const zt = k.top[2], yt = k.top[1];
 
     // --- Key lever with stem and keytop
@@ -110,9 +110,9 @@ export function buildTypeAction(rig: Rig, tw: Typewriter, legendMat: THREE.Mater
       [k.springLever[2] + 0.002, yBar1], [k.springLever[2], yBar1 + 0.002], [k.springLever[2] - 0.002, yBar1], [KEY_FULCRUM.z - 0.006, yBar1],
     ];
     lever.add(merge([
-      plate(outline, 0.0012, zy(k.x), [circle(KEY_FULCRUM.z, KEY_FULCRUM.y, 0.0012, 10, true)]),
-      plate(bar2D([bend - 0.002, KEY_FULCRUM.y], neck, 0.003), 0.0012, zy(k.x)),
-      plate(bar2D(neck, [zt, yt - 0.0035], 0.0016), 0.0012, zy(k.x)),
+      plate(outline, KEY_LEVER_T, zy(k.x), [circle(KEY_FULCRUM.z, KEY_FULCRUM.y, 0.0012, 10, true)]),
+      plate(bar2D([bend - 0.002, KEY_FULCRUM.y], neck, 0.003), KEY_LEVER_T, zy(k.x)),
+      plate(bar2D(neck, [zt, yt - 0.0035], 0.0016), KEY_LEVER_T, zy(k.x)),
     ]), MAT.steel);
     const kt = keytop(k.top, cell(i));
     lever.add(kt.body, MAT.keyBlack);

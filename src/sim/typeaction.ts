@@ -4,7 +4,7 @@
 
 import { Body, System } from './solver';
 import { Limit, PointCylinder, PointPlane, PointSpring, Rod } from './elements';
-import { F, KeyGeom, P0, PLATEN_AXIS, PLATEN_R, STACK, UBAR_REST_F, X } from './layout';
+import { F, KeyGeom, LOCK_ANGLE, P0, PLATEN_AXIS, PLATEN_R, STACK, UBAR_REST_F, X } from './layout';
 import { addScaled } from './vec';
 
 export const TRAIN = {
@@ -42,6 +42,8 @@ export interface Train {
   /** Type face against the platen: [lower-case glyph, upper-case glyph]. */
   hit: [PointCylinder, PointCylinder];
   ubar: PointPlane;
+  /** Line lock: with a tooth of the lock comb under it, the key lever cannot go below this stop. */
+  lock: Limit;
   awake: boolean;
   /** Per-glyph impact tracking for the imprint. */
   peak: [number, number];
@@ -99,7 +101,11 @@ export function buildTrain(sys: System, k: KeyGeom, platenCarrier: Body, ubar: B
   // The shank must stay in front of the universal bar's face: near the platen it pushes the bar back.
   const ub = sys.add(new PointPlane(bar, k.ubarPoint, ubar, addScaled(P0, F, UBAR_REST_F), F), `ubar:${k.code}`);
 
-  const t: Train = { geom: k, lever, sub, bar, link1, link2, spring, pad, stop, hit, ubar: ub, awake: true, peak: [0, 0], peakState: [null, null], approach: 0, fingers: 0 };
+  const lock = sys.add(new Limit(lever, LOCK_ANGLE, -1), `lineLock:${k.code}`);
+  lock.restitution = 0.1;
+  lock.enabled = false;
+
+  const t: Train = { geom: k, lever, sub, bar, link1, link2, spring, pad, stop, hit, ubar: ub, lock, awake: true, peak: [0, 0], peakState: [null, null], approach: 0, fingers: 0 };
   setTrainAwake(t, false);
   return t;
 }
@@ -115,6 +121,7 @@ export function setTrainAwake(t: Train, awake: boolean): void {
   t.link1.enabled = t.link2.enabled = t.pad.enabled = t.stop.enabled = t.ubar.enabled = awake;
   t.hit[0].enabled = t.hit[1].enabled = awake;
   t.spring.enabled = awake;
+  if (!awake) t.lock.enabled = false;
 }
 
 /** True when the train has come back to rest and can be put to sleep. */

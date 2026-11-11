@@ -36,7 +36,7 @@ export interface BodyDef {
   com?: Vec3;
   /** Viscous generalized damping (N·m·s/rad or N·s/m). */
   damping?: number;
-  /** Coulomb generalized friction magnitude (N·m or N). */
+  /** Dry (Coulomb) generalized friction magnitude (N·m or N): slows a moving body and holds a resting one. */
   friction?: number;
 }
 
@@ -259,8 +259,6 @@ export class System {
   time = 0;
   steps = 0;
   gravity = 9.81;
-  /** Velocity scale for Coulomb friction regularization. */
-  frictionEps = 1e-3;
   /** Hooks for discrete machine logic (latches, ratchets, event detection). */
   preStep: Array<(sys: System) => void> = [];
   postStep: Array<(sys: System) => void> = [];
@@ -317,7 +315,6 @@ export class System {
         } else b.f -= b.mass * g * b.axisW[1];
       }
       if (b.damping) b.f -= b.damping * b.v;
-      if (b.friction) b.f -= b.friction * Math.tanh(b.v / this.frictionEps);
     }
     for (const f of this.aForces) f.apply(this);
     for (const c of this.aElastic) {
@@ -340,6 +337,11 @@ export class System {
       b.qPrev = b.q;
       if (b.kinematic) { b.q += h * b.v; b.vPre = b.v; continue; }
       b.v += (h * b.f) / b.inertia;
+      if (b.friction) {
+        // Dry friction opposes motion and can at most stop it this substep: below that the body sticks.
+        const dv = (h * b.friction) / b.inertia;
+        b.v = b.v > dv ? b.v - dv : b.v < -dv ? b.v + dv : 0;
+      }
       b.vPre = b.v;
       b.q += h * b.v;
     }

@@ -1,8 +1,9 @@
 // The solver is checked against closed-form mechanics before it is trusted with the typewriter.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { System } from '../src/sim/solver';
-import { Limit, Rod, CoordSpring, PointSpring, AppliedForce } from '../src/sim/elements';
+import { Body, Constraint, System } from '../src/sim/solver';
+import { AppliedForce, CoordSpring, FnConstraint, Limit, PointCylinder, PointPlane, PointSpring, Rod } from '../src/sim/elements';
+import type { Vec3 } from '../src/sim/vec';
 
 const near = (a: number, b: number, tol: number, msg: string) =>
   assert.ok(Math.abs(a - b) <= tol, `${msg}: got ${a}, expected ${b} ± ${tol}`);
@@ -123,9 +124,12 @@ test('point spring and applied force: work in equals energy stored', () => {
   const spring = sys.addForce(new PointSpring(b, [0, 0, 0.1], null, [0, 0.05, 0.1], 200, 0.05));
   const push = sys.addForce(new AppliedForce(b, [0, 0, 0.2]));
   push.set([0, -1.5, 0]);
-  sys.advance(1.5);
+  // Ledger: every joule the push puts in is either stored (spring, motion) or was turned to heat by the damper.
+  let heat = 0;
+  for (let i = 0; i < 60000; i++) { sys.step(); heat += b.damping * b.v * b.v * sys.h; }
   assert.ok(Math.abs(b.v) < 1e-3, 'settles');
   const stored = sys.potential();
+  near(push.work, stored + sys.kinetic() + heat, 2e-3 * push.work, 'work in = energy stored + energy dissipated');
   // Viscous damping removed the difference; at rest, torque balance must hold.
   const A: [number, number, number] = [0, 0, 0], B: [number, number, number] = [0, 0, 0];
   spring.ends(A, B);
@@ -134,4 +138,97 @@ test('point spring and applied force: work in equals energy stored', () => {
   const tPush = P[2] * 1.5;
   near(tSpring, tPush, 2e-4, 'static torque balance');
   assert.ok(push.work > stored && stored > 0.25 * push.work, `work ${push.work} J, stored ${stored} J`);
+});
+
+// --- Constraint gradients ------------------------------------------------------------------------
+// Every element reports dC/dq for each body it touches. If one were wrong the solver would still "work"
+// but push parts in the wrong direction; so each is compared with a numerical derivative, on bodies that
+// ride on other bodies the way the platen rides on the shift cradle on the carriage.
+
+function lcg(seed: number): () => number {
+  let x = seed >>> 0;
+  return () => { x = (Math.imul(x, 1664525) + 1013904223) >>> 0; return x / 4294967296 - 0.5; };
+}
+
+test('gradients of rod, point-plane and point-cylinder constraints match finite differences on chains of bodies', () => {
+  const rnd = lcg(7);
+  const vec = (scale = 0.1): Vec3 => [rnd() * scale, rnd() * scale, rnd() * scale];
+  const unit = (): Vec3 => { const v = vec(1); const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; };
+  let checked = 0, worst = 0;
+  for (let trial = 0; trial < 30; trial++) {
+    const sys = new System();
+    const mk = (kind: 'hinge' | 'slide', parent?: Body): Body => sys.addBody({ name: 'b' + sys.bodies.length, kind, parent, origin: vec(), axis: unit(), inertia: 1 });
+    const carriage = mk('slide'), cradle = mk('slide', carriage), platen = mk('hinge', cradle), lever = mk('hinge', cradle), crank = mk('hinge'), bar = mk('hinge', crank);
+    const bodies = [carriage, cradle, platen, lever, crank, bar];
+    const pick = (): Body => bodies[Math.floor((rnd() + 0.5) * bodies.length)];
+    const rodT = new Rod(pick(), vec(), pick(), vec(), 0.05);
+    rodT.mode = 'tension';
+    const cons: Constraint[] = [
+      new Rod(bar, vec(), platen, vec(), 0.05), new Rod(pick(), vec(), null, vec(), 0.03), rodT,
+      new PointPlane(lever, vec(), platen, vec(), unit()), new PointPlane(pick(), vec(), null, vec(), unit()), new PointPlane(bar, vec(), carriage, vec(), unit()),
+      new PointCylinder(bar, vec(), platen, vec(), unit(), 0.016), new PointCylinder(lever, vec(), null, vec(), unit(), 0.01), new PointCylinder(platen, vec(), crank, vec(), unit(), 0.02),
+    ];
+    for (const b of bodies) b.q = rnd() * (b.kind === 'hinge' ? 2 : 0.1);
+    for (const c of cons) {
+      c.eval();
+      const grad = new Map<Body, number>();
+      for (let i = 0; i < c.n; i++) grad.set(c.gb[i], c.gv[i]);
+      for (const b of bodies) {
+        const q = b.q, eps = 1e-6;
+        b.q = q + eps; const hi = c.eval();
+        b.q = q - eps; const lo = c.eval();
+        b.q = q;
+        const numeric = (hi - lo) / (2 * eps), stated = grad.get(b) ?? 0;
+        worst = Math.max(worst, Math.abs(numeric - stated));
+        assert.ok(Math.abs(numeric - stated) < 1e-7 + 1e-6 * Math.abs(numeric), `${c.constructor.name} trial ${trial}, body ${b.name}: stated ${stated}, numerical ${numeric}`);
+        checked++;
+      }
+    }
+  }
+  assert.ok(checked === 30 * 9 * 6 && worst < 1e-7, `${checked} derivatives, worst difference ${worst.toExponential(1)}`);
+});
+
+test('two bodies colliding: momentum is kept and the bounce is the coefficient of restitution times the approach', () => {
+  for (const [m1, m2, v1, v2, e] of [[0.02, 0.005, 1.5, -0.4, 0.5], [1.3, 0.0015, 0.2, 0, 0], [0.004, 0.3, 2, 0.5, 0.9]] as number[][]) {
+    const sys = new System();
+    sys.gravity = 0;
+    const a = sys.addBody({ name: 'a', kind: 'slide', axis: [1, 0, 0], inertia: m1 });
+    const b = sys.addBody({ name: 'b', kind: 'slide', axis: [1, 0, 0], inertia: m2 });
+    // b starts 5 mm ahead of a and must stay ahead of it.
+    const touch = sys.add(new FnConstraint((c) => { c.coord(b, 1); c.coord(a, -1); return b.q - a.q + 0.005; }));
+    touch.restitution = e;
+    a.v = v1; b.v = v2;
+    sys.advance(0.05);
+    const p = m1 * v1 + m2 * v2, approach = v1 - v2;
+    near(m1 * a.v + m2 * b.v, p, 1e-9 + 1e-9 * Math.abs(p), 'momentum');
+    near(b.v - a.v, e * approach, 1e-9 + 1e-6 * approach, 'separation speed = e x approach speed');
+    near(a.v, (p - m2 * e * approach) / (m1 + m2), 1e-9 + 1e-6 * Math.abs(v1), 'velocity of the striking body');
+    assert.ok(b.q - a.q + 0.005 > -1e-12, 'they never pass through each other');
+  }
+});
+
+test('dry friction: holds a body still below the friction force, and stops a sliding one for good', () => {
+  const sys = new System();
+  sys.gravity = 0;
+  const m = 0.4, Ff = 0.25;
+  const b = sys.addBody({ name: 'block', kind: 'slide', axis: [1, 0, 0], inertia: m, friction: Ff });
+  const push = sys.addForce(new AppliedForce(b, [0, 0, 0]));
+  // Pushed with less than the friction force it does not creep at all.
+  push.set([0.8 * Ff, 0, 0]);
+  sys.advance(0.5);
+  assert.equal(b.q, 0);
+  assert.equal(b.v, 0);
+  // Pushed harder it accelerates at (F - Ff) / m.
+  push.set([3 * Ff, 0, 0]);
+  sys.advance(0.2);
+  near(b.v, ((3 * Ff - Ff) / m) * 0.2, 1e-9, 'speed after 0.2 s');
+  // Let go, it slides to rest in v² m / (2 Ff) and then stays exactly still (no chatter about zero).
+  push.set([0, 0, 0]);
+  const v0 = b.v, q0 = b.q;
+  sys.advance((v0 * m) / Ff + 0.01);
+  assert.equal(b.v, 0);
+  near(b.q - q0, (v0 * v0 * m) / (2 * Ff), 2 * v0 * sys.h, 'stopping distance');
+  const rest = b.q;
+  sys.advance(0.5);
+  assert.equal(b.q, rest);
 });

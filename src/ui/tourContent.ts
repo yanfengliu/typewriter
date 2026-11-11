@@ -3,7 +3,7 @@
 import type { App } from '../app';
 import { CHAR_PITCH, GLYPH_PITCH, MARGIN, R_SEG } from '../sim/layout';
 import { SPEC } from '../sim/mechanism';
-import type { TourCtl, TourStep } from './tour';
+import type { StepView, TourCtl, TourStep } from './tour';
 import type { Shot } from './camera';
 
 const KEY = 'KeyH';
@@ -60,6 +60,10 @@ const type = (c: TourCtl, text: string): void => {
   }
 };
 const quiet = (c: TourCtl) => c.app.typist.pending === 0 && c.app.tw.idle;
+
+// The line lock is shown from three places: under the carriage, where its lug meets the comb's post; from behind
+// and above, looking down between the key levers at the comb; and from the typist's side, at the key being tried.
+const LOCK_VIEW: StepView = { shot: 'lockPost', shell: 'hidden', focus: ['bell', 'keys', 'carriage'], highlight: ['lockComb'] };
 
 export const TOUR: TourStep[] = [
   {
@@ -187,7 +191,7 @@ export const TOUR: TourStep[] = [
   {
     chapter: 'New line', title: 'The bell: eight spaces to go',
     body: `<p>You cannot see the end of the line while watching your copy, so the machine tells you. A cam on the carriage pushes a small sprung <b>hammer</b> aside as it passes, then lets go. The hammer flies back and strikes the bell once.</p>
-      <p>Eight spaces later the carriage reaches the right margin stop and the keys lock. Nothing you type is lost here: it waits until you return the carriage.</p>`,
+      <p>Eight spaces later the carriage reaches the right margin stop and the keys lock: that is the next step.</p>`,
     view: { shot: 'bell', shell: 'hidden', focus: ['bell', 'carriage', 'escapement'], highlight: ['hammer', 'bell'] },
     speed: 0.2,
     run: async (c) => {
@@ -197,6 +201,34 @@ export const TOUR: TourStep[] = [
       await c.playTo(() => c.seen('bell') && quiet(c), 4);
     },
     readouts: [['Spaces left on the line', (a) => `${(MARGIN.right - a.tw.column).toFixed(0)}`]],
+  },
+  {
+    chapter: 'New line', title: 'The end of the line: the keys lock',
+    body: `<p>Under the key levers, near their pivot, lies a dark slotted strip: the <b>lock comb</b>. Normally every lever drops into one of its slots and the comb does nothing.</p>
+      <p>A post on the comb reaches up to the carriage. As the carriage takes the last step of the line, a lug on it meets the small spring on the post and pushes the comb 2 mm sideways. Now its <b>teeth stand under the levers</b>: a key goes down a couple of millimetres, meets a tooth and stops, so you cannot type over the last letter.</p>
+      <p>Three views: the lug coming up to the orange post as two letters are typed; the comb sliding under the levers on the last letter of the line; then one more key, tried and stopped. Nothing you type is lost: it waits until you return the carriage, which lets the comb spring back.</p>`,
+    view: LOCK_VIEW,
+    speed: 0.2,
+    run: async (c) => {
+      c.app.tw.placeCarriage(MARGIN.right - 3);
+      c.skipTo(() => c.app.tw.idle, 0.3);
+      type(c, 'fu');
+      await c.playTo(() => quiet(c), 3);
+      c.view({ ...LOCK_VIEW, shot: 'lockTeeth', highlight: [] }, 1.6);
+      await c.wait(2.2);
+      type(c, 'l');
+      await c.playTo(() => c.app.tw.lineLockIn && quiet(c), 3);
+      await c.wait(1.2);
+      c.view({ shot: 'lockKey', shell: 'solid', focus: null }, 1.6);
+      await c.wait(2.2);
+      type(c, 'l');
+      await c.playTo(() => c.seen('locked') && c.app.tw.idle, 3);
+    },
+    readouts: [
+      ['Spaces left on the line', (a) => `${(MARGIN.right - a.tw.column).toFixed(0)}`],
+      ['Lock comb pushed', (a) => `${(a.tw.core.lockBar.q * 1000).toFixed(1)} mm`],
+      ['Keys', (a) => (a.tw.lineLockIn ? 'locked' : 'free')],
+    ],
   },
   {
     chapter: 'Your turn', title: 'Now type',

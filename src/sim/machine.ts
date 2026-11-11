@@ -1,9 +1,9 @@
 // The complete typewriter as one physical system, plus the bookkeeping that turns contacts into ink.
 
 import { Body, Constraint, System } from './solver';
-import { CHAR_PITCH, ESC, F, KeyGeom, P0, PAPER, PLATEN_AXIS, PLATEN_R, RIBBON, R_SEG, TOOTH_PITCH, U, buildKeys } from './layout';
-import { Core, CoreState, Group, GroupName, buildCore, coreLogic, SPEC } from './mechanism';
-import { Train, buildTrain, setTrainAwake, trainAtRest } from './typeaction';
+import { CHAR_PITCH, ESC, F, KeyGeom, LOCK_ANGLE, LOCK_ENGAGE, P0, PAPER, PLATEN_AXIS, PLATEN_R, RIBBON, R_SEG, TOOTH_PITCH, U, buildKeys } from './layout';
+import { Core, CoreState, Group, GroupName, buildCore, coreLogic, lockRest, SPEC } from './mechanism';
+import { ImpactState, Train, buildTrain, setTrainAwake, trainAtRest } from './typeaction';
 import { Finger, FingerOptions, FingerPhase, ReturnHand, HandPhase } from './actuators';
 import type { Vec3 } from './vec';
 
@@ -35,11 +35,24 @@ export interface Snapshot {
   awake: boolean[];
   core: CoreState;
   marks: number; seq: number;
-  fingers: Array<{ spec: FingerSpec; phase: FingerPhase; released: boolean; q: number; v: number; work: number; push: number; t0: number; tLift: number; depth: number }>;
+  fingers: Array<{ spec: FingerSpec; phase: FingerPhase; released: boolean; q: number; v: number; work: number; push: number; t0: number; tLift: number; depth: number; pad: number[] }>;
   hand: { phase: HandPhase; push: number; t0: number; work: number };
   fingerWork: number;
   detent: number;
+  /** Impact tracking and line-lock latch of each key train. */
+  trains: Array<{ peak: [number, number]; peakState: [ImpactState | null, ImpactState | null]; approach: number; lock: boolean }>;
+  /** Rest state of each mechanism group, in GROUP_ORDER. */
+  groups: Array<{ awake: boolean; quiet: number }>;
+  /** Per permanent constraint: active, force, lambda, value, vnPre (the contact state of the last substep). */
+  flags: Float64Array;
+  /** Edge-detector memory of the event watchers, and of the "carriage held by the loose dog" detector. */
+  watch: boolean[];
+  held: boolean;
+  spaceLock: boolean;
 }
+
+const FLAGS = 5;
+const copyImpact = (p: ImpactState | null): ImpactState | null => (p ? { ...p, point: [p.point[0], p.point[1], p.point[2]] } : null);
 
 interface Watcher { c: Constraint; was: boolean; fire: () => void }
 
@@ -66,6 +79,7 @@ export class Typewriter {
   touch = 3.2;
   private fingerWorkDone = 0;
   private readonly permanent: number;
+  private readonly permanentCons: number;
   private coreWatch: Watcher[] = [];
   private trainWatch = new Map<Train, Watcher[]>();
   private awakeTrains: Train[] = [];
@@ -84,6 +98,10 @@ export class Typewriter {
     }
     this.hand = new ReturnHand(sys, this.core);
     this.permanent = sys.bodies.length;
+    // The ribbon's two little links are solved last in each pass: the universal bar that drives them is moved by
+    // the typebar contact, and a link solved before its driver moves is left stretched by that motion.
+    for (const link of [this.core.ribbonLink1, this.core.ribbonLink2]) { sys.constraints.splice(sys.constraints.indexOf(link), 1); sys.constraints.push(link); }
+    this.permanentCons = sys.constraints.length;
     sys.preStep.push(() => this.pre());
     sys.postStep.push(() => this.post());
 
@@ -94,11 +112,13 @@ export class Typewriter {
     w(this.coreWatch, c.marginRight, () => this.emit('lineEnd', undefined, Math.abs(c.marginRight.vnPre)));
     w(this.coreWatch, c.cradleUp, () => { if (c.cradleUp.vnPre < -0.03) this.emit('shiftUp', undefined, -c.cradleUp.vnPre); });
     w(this.coreWatch, c.cradleDown, () => { if (c.cradleDown.vnPre < -0.03) this.emit('shiftDown', undefined, -c.cradleDown.vnPre); });
+    w(this.coreWatch, c.spaceLock, () => this.emit('locked', 'Space', c.space.v));
     for (const t of this.trains) {
       const list: Watcher[] = [];
       w(list, t.ubar, () => { if (t.bar.v > 1 && t.ubar.vnPre < -0.2) this.emit('pickup', t.geom.code, -t.ubar.vnPre); });
       w(list, t.pad, () => { if (t.bar.v < -2) this.emit('barRest', t.geom.code, -t.bar.v); });
       w(list, t.stop, () => this.emit('keyBottom', t.geom.code, t.lever.v));
+      w(list, t.lock, () => this.emit('locked', t.geom.code, t.lever.v));
       this.trainWatch.set(t, list);
     }
   }
@@ -110,7 +130,9 @@ export class Typewriter {
   get column(): number { return this.core.carriage.q / CHAR_PITCH; }
   /** Lines fed since the sheet was loaded. */
   get line(): number { return (this.core.platen.q * SPEC.lineTeeth) / (2 * Math.PI); }
-  /** The escapement has no letter space left before the right margin stop: the line lock holds the keys. */
+  /** The line lock has closed: the teeth of the comb stand under the key levers. */
+  get lineLockIn(): boolean { return this.core.lockBar.q > LOCK_ENGAGE; }
+  /** The escapement has no letter space left before the right margin stop: the typist stops striking keys. */
   get atLineEnd(): boolean {
     const st = this.core.state;
     return (st.toothLoose - st.ratchet) * CHAR_PITCH >= this.core.limits.cRight - 1e-9 || this.core.carriage.q >= this.core.limits.cRight - 1e-4;
@@ -156,13 +178,14 @@ export class Typewriter {
     switch (name) {
       case 'esc':
         return this.awakeTrains.length === 0 && !g.space.awake && !g.back.awake && !this.hand.busy && Math.abs(c.carriage.v) < 2e-4 && c.ubar.q < 2e-5 &&
-          Math.abs(c.ubar.v) < 1e-3 && c.rocker.q < 2e-4 && Math.abs(c.rocker.v) < 0.02 && Math.abs(c.vibrator.v) < 1e-3 && c.state.looseIn;
+          Math.abs(c.ubar.v) < 1e-3 && c.rocker.q < 2e-4 && Math.abs(c.rocker.v) < 0.02 && Math.abs(c.vibrator.v) < 1e-3 && Math.abs(c.lockBar.v) < 1e-3 && c.state.looseIn;
       case 'shift':
         return Math.abs(c.shift.v) < 2e-3 && Math.abs(c.cradle.v) < 2e-4 && !this.fingerOn('Shift', true) && (this.fingerOn('Shift', false) || c.shift.q < 3e-4);
       case 'space': return !this.fingerOn('Space', false) && c.space.q < 2e-4 && Math.abs(c.space.v) < 2e-3;
       case 'back': return !this.fingerOn('Backspace', false) && c.backspace.q < 2e-4 && Math.abs(c.backspace.v) < 2e-3;
       case 'feed': return !this.hand.busy && c.lineLever.q < 2e-4 && Math.abs(c.lineLever.v) < 2e-3 && Math.abs(c.platen.v) < 2e-3 && Math.abs(Math.sin(SPEC.lineTeeth * c.platen.q)) < 0.08;
-      case 'bell': return Math.abs(c.hammer.q) < 3e-3 && Math.abs(c.hammer.v) < 0.08 && !this.inBellZone();
+      // At rest on its spring, or held part-cocked by the cam while the carriage stands on the ramp.
+      case 'bell': return Math.abs(c.hammer.v) < 0.08 && (Math.abs(c.hammer.q) < 3e-3 || c.bellCam.active) && (!this.inBellZone() || Math.abs(c.carriage.v) < 2e-4);
     }
   }
 
@@ -182,9 +205,8 @@ export class Typewriter {
   private makeFinger(spec: FingerSpec): Finger | null {
     const c = this.core;
     let target: Body, top: Vec3, landed: () => boolean;
-    // Line lock: at the right margin a bar blocks the character keys and the space bar.
-    if (this.atLineEnd && !spec.id.startsWith('Shift') && spec.id !== 'Backspace') { this.emit('locked', spec.id); return null; }
-    if (spec.id === 'Space') { target = c.space; top = c.points.spaceTop; landed = () => c.space.q > c.limits.spaceMax * 0.97; this.wake('space'); this.wake('esc'); }
+    // A stroke has landed when the type meets the paper or the key bottoms, or when the key meets the line lock.
+    if (spec.id === 'Space') { target = c.space; top = c.points.spaceTop; landed = () => c.space.q > c.limits.spaceMax * 0.97 || c.spaceLock.active; this.wake('space'); this.wake('esc'); }
     else if (spec.id === 'ShiftLeft' || spec.id === 'ShiftRight') {
       target = c.shift; top = spec.id === 'ShiftLeft' ? c.points.shiftTopL : c.points.shiftTopR;
       landed = () => c.cradleUp.active || c.shift.q > c.limits.shiftMax * 0.97;
@@ -194,7 +216,7 @@ export class Typewriter {
       const t = this.byCode.get(spec.id);
       if (!t) return null;
       target = t.lever; top = t.geom.top;
-      landed = () => t.hit[0].active || t.hit[1].active || t.lever.q > t.geom.keyAngle * 0.995;
+      landed = () => t.hit[0].active || t.hit[1].active || t.lever.q > t.geom.keyAngle * 0.995 || t.lock.active;
       this.wakeTrain(t);
       t.fingers++;
     }
@@ -230,6 +252,7 @@ export class Typewriter {
     st.toothLoose = col; st.backTooth = col; st.ratchet = 0; st.toothFixed = 0; st.looseIn = true; st.fixedIn = false;
     st.bellArmed = c.carriage.q < c.limits.cBell - SPEC.bellRamp;
     c.hammer.q = 0; c.hammer.v = 0;
+    c.lockBar.q = lockRest(c.carriage.q); c.lockBar.v = 0;
     this.heldByLoose = true;
   }
 
@@ -276,9 +299,33 @@ export class Typewriter {
     }
     if (this.hand.update()) this.emit('returnDone');
     if (this.sys.steps % 10 === 0) {
-      if (c.groups.esc.awake && !c.groups.bell.awake && this.inBellZone()) this.wake('bell');
+      if (c.groups.esc.awake && !c.groups.bell.awake && this.inBellZone() && Math.abs(c.carriage.v) > 2e-4) this.wake('bell');
       this.schedule?.();
     }
+    this.lockLogic();
+  }
+
+  /**
+   * Line lock. Each tooth of the comb is either beside its lever or under it, and which contact can act follows
+   * from where the two parts are: a lever that is down in its slot stands in the comb's way; a tooth that has
+   * slid under a lever stops that lever a little below its rest position. Runs last before every substep, after
+   * anything that may have woken a part.
+   */
+  private lockLogic(): void {
+    const c = this.core;
+    if (!c.groups.esc.awake) return;
+    const under = this.lineLockIn, slack = 3e-4;
+    let inSlot = false;
+    for (const t of this.awakeTrains) {
+      if (!under) t.lock.enabled = false;
+      else if (!t.lock.enabled && t.lever.q <= LOCK_ANGLE + slack) t.lock.enabled = true;
+      if (!t.lock.enabled && t.lever.q > LOCK_ANGLE) inSlot = true;
+    }
+    if (c.groups.space.awake) {
+      c.spaceLock.enabled = under && (c.spaceLock.enabled || c.space.q <= c.spaceLock.bound + slack);
+      if (!c.spaceLock.enabled && c.space.q > c.spaceLock.bound) inSlot = true;
+    }
+    c.lockBlock.enabled = inSlot && !under;
   }
 
   private post(): void {
@@ -351,16 +398,31 @@ export class Typewriter {
 
   // --- Snapshots (for stepping back in the guided tour) -------------------------------------------
 
+  private watchers(): Watcher[] {
+    const all = [...this.coreWatch];
+    for (const t of this.trains) all.push(...this.trainWatch.get(t)!);
+    return all;
+  }
+
+  /** Everything the future depends on: positions, velocities, latches, contact state and who is touching what. */
   snapshot(): Snapshot {
-    const n = this.permanent, b = this.sys.bodies;
+    const n = this.permanent, b = this.sys.bodies, cons = this.sys.constraints;
     const q = new Float64Array(n), v = new Float64Array(n);
     for (let i = 0; i < n; i++) { q[i] = b[i].q; v[i] = b[i].v; }
+    const flags = new Float64Array(this.permanentCons * FLAGS);
+    for (let i = 0; i < this.permanentCons; i++) { const c = cons[i]; flags.set([c.active ? 1 : 0, c.force, c.lambda, c.value, c.vnPre], i * FLAGS); }
     return {
       time: this.sys.time, steps: this.sys.steps, q, v, awake: this.trains.map((t) => t.awake), core: { ...this.core.state },
       marks: this.marks.length, seq: this.seq,
-      fingers: this.fingers.map((f) => ({ spec: { ...this.fingerSpecs.get(f)! }, phase: f.phase, released: f.released, q: f.body.q, v: f.body.v, work: f.work, push: f.push, t0: f.t0, tLift: f.tLift, depth: this.servoDepth.get(f.id) ?? 0 })),
+      fingers: this.fingers.map((f) => ({
+        spec: { ...this.fingerSpecs.get(f)! }, phase: f.phase, released: f.released, q: f.body.q, v: f.body.v, work: f.work, push: f.push, t0: f.t0, tLift: f.tLift,
+        depth: this.servoDepth.get(f.id) ?? 0, pad: [f.contact.active ? 1 : 0, f.contact.force, f.contact.lambda, f.contact.value, f.contact.vnPre],
+      })),
       hand: { phase: this.hand.phase, push: this.hand.push, t0: this.hand.t0, work: this.hand.force.work },
       fingerWork: this.fingerWorkDone, detent: this.detentIndex,
+      trains: this.trains.map((t) => ({ peak: [t.peak[0], t.peak[1]], peakState: [copyImpact(t.peakState[0]), copyImpact(t.peakState[1])], approach: t.approach, lock: t.lock.enabled })),
+      groups: GROUP_ORDER.map((name) => ({ awake: this.core.groups[name].awake, quiet: this.core.groups[name].quiet })),
+      flags, watch: this.watchers().map((w) => w.was), held: this.heldByLoose, spaceLock: this.core.spaceLock.enabled,
     };
   }
 
@@ -368,31 +430,51 @@ export class Typewriter {
     for (const f of this.fingers) f.dispose();
     this.fingers = [];
     this.fingerSpecs.clear();
-    for (const name of GROUP_ORDER) this.wake(name);
-    for (const t of this.trains) { t.fingers = 0; t.peak = [0, 0]; t.peakState = [null, null]; }
-    this.trains.forEach((t, i) => setTrainAwake(t, s.awake[i]));
+    for (const t of this.trains) t.fingers = 0;
+    // Put the fingers back first (that wakes what they touch), then impose the saved rest state on top.
+    const fingers: Finger[] = [];
+    for (const fs of s.fingers) {
+      this.servoDepth.set(fs.spec.id, fs.depth);
+      fingers.push(this.makeFinger(fs.spec)!);
+    }
+    GROUP_ORDER.forEach((name, i) => {
+      const g = this.core.groups[name];
+      if (s.groups[i].awake) this.wake(name); else if (g.awake) this.rest(g);
+      g.quiet = s.groups[i].quiet;
+    });
+    this.trains.forEach((t, i) => {
+      setTrainAwake(t, s.awake[i]);
+      const saved = s.trains[i];
+      t.peak = [saved.peak[0], saved.peak[1]];
+      t.peakState = [copyImpact(saved.peakState[0]), copyImpact(saved.peakState[1])];
+      t.approach = saved.approach;
+      t.lock.enabled = saved.lock;
+    });
     this.awakeTrains = this.trains.filter((t) => t.awake);
-    const b = this.sys.bodies;
+    this.core.spaceLock.enabled = s.spaceLock;
+    const b = this.sys.bodies, cons = this.sys.constraints;
     for (let i = 0; i < this.permanent; i++) { b[i].q = s.q[i]; b[i].v = s.v[i]; }
-    // Contact flags belong to the moment being left, not the one being restored.
-    for (const c of this.sys.constraints) { c.active = false; c.force = 0; c.lambda = 0; }
+    // Contact state belongs to the moment being restored, not the one being left: pre-step logic reads it
+    // (a finger decides it has landed from the platen contact) before the next substep recomputes it.
+    for (let i = 0; i < this.permanentCons; i++) {
+      const c = cons[i], o = i * FLAGS;
+      c.active = s.flags[o] === 1; c.force = s.flags[o + 1]; c.lambda = s.flags[o + 2]; c.value = s.flags[o + 3]; c.vnPre = s.flags[o + 4];
+    }
     Object.assign(this.core.state, s.core);
     this.sys.time = s.time;
     this.sys.steps = s.steps;
     this.marks.length = Math.min(this.marks.length, s.marks);
     this.seq = s.seq;
-    for (const fs of s.fingers) {
-      this.servoDepth.set(fs.spec.id, fs.depth);
-      const f = this.makeFinger(fs.spec);
-      if (!f) continue;
+    s.fingers.forEach((fs, i) => {
+      const f = fingers[i];
       f.phase = fs.phase; f.released = fs.released; f.body.q = fs.q; f.body.v = fs.v; f.work = fs.work; f.push = fs.push; f.t0 = fs.t0; f.tLift = fs.tLift;
-    }
+      f.contact.active = fs.pad[0] === 1; f.contact.force = fs.pad[1]; f.contact.lambda = fs.pad[2]; f.contact.value = fs.pad[3]; f.contact.vnPre = fs.pad[4];
+    });
     this.events = [];
     this.hand.phase = s.hand.phase; this.hand.push = s.hand.push; this.hand.t0 = s.hand.t0; this.hand.force.work = s.hand.work;
     this.fingerWorkDone = s.fingerWork;
     this.detentIndex = s.detent;
-    for (const w of this.coreWatch) w.was = true;
-    for (const list of this.trainWatch.values()) for (const w of list) w.was = true;
-    this.heldByLoose = true;
+    this.watchers().forEach((w, i) => { w.was = s.watch[i]; });
+    this.heldByLoose = s.held;
   }
 }

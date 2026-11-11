@@ -103,11 +103,11 @@ export function buildFrame(rig: Rig, tw: Typewriter, legendMat: THREE.Material, 
 
   // --- Space bar: a first-class lever whose rear cross-bar lifts the escapement rocker's arm
   const space = rig.part('spaceBar', { kind: 'spaceBar', sys: 'escapement', body: c.space, explode: [0, -0.08, 0.14], anchor: c.points.spaceTop });
-  const sx = 0.054625, tip = c.points.spaceTip;
+  const sx = SPACE_BAR.armX, tip = c.points.spaceTip;
   const sArm = (x: number) => merge([
     plate(bar2D([SPACE_BAR.z - 0.003, SPACE_BAR.y - 0.008], [SPACE_BAR.z - 0.003, yA], 0.0016), 0.0012, zy(x)),
     plate(bar2D([SPACE_BAR.z - 0.003, yA], [zA, yA], 0.003), 0.0012, zy(x)),
-    plate(bar2D([zA, yA], [tip[2], tip[1] - 0.002], 0.003), 0.0012, zy(x)),
+    plate(bar2D([zA, yA], [tip[2], tip[1] - 0.002], SPACE_BAR.tailHalf), 0.0012, zy(x)),
   ]);
   space.add(merge([sArm(-sx), sArm(sx), tube([-sx, tip[1] - 0.002, tip[2]], [sx, tip[1] - 0.002, tip[2]], 0.0018, 8), box([-0.004, tip[1] - 0.001, tip[2]], [0.012, 0.002, 0.005])]), MAT.steelDark);
   const bar = plate(roundRect(-SPACE_BAR.width / 2, -0.0075, SPACE_BAR.width / 2, 0.0075, 0.005), 0.008, { origin: [0, SPACE_BAR.y - 0.004, SPACE_BAR.z], a: [1, 0, 0], b: [0, 0, -1] }, [], 0.0015);

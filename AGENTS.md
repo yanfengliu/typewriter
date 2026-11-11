@@ -63,6 +63,7 @@ The designated coordinator reads `../fleet/docs/skills/coordinator.md` before pl
 - `src/sim` does not import three.js or touch the DOM.
 - Geometry constants live in `src/sim/layout.ts` and are shared by physics and model; a number that positions a part is not repeated in the view.
 - Nothing typed is dropped: input waits in the typist queue until the mechanism can take it.
+- The machine refuses nothing. A key that must not act (the line lock) is stopped by a part with a body and a contact, never by a check where the finger is put down; `Typewriter.keyDown` only says no to a key that already has a finger on it.
 - Ink comes only from a recorded type-on-platen contact (position from the state at peak force, darkness from that force and ribbon cover).
 - A tour step replays the real simulation from the pristine snapshot; it must be repeatable from any other step.
 

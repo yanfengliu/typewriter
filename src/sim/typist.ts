@@ -8,8 +8,8 @@ import type { Typewriter } from './machine';
 import type { Train } from './typeaction';
 
 export type Stroke =
-  | { kind: 'char'; code: string; shift: boolean; force?: number }
-  | { kind: 'space' }
+  | { kind: 'char'; code: string; shift: boolean; force?: number; tried?: boolean }
+  | { kind: 'space'; tried?: boolean }
   | { kind: 'backspace' }
   | { kind: 'return' };
 
@@ -104,12 +104,13 @@ export class Typist {
     if (s.kind === 'char') {
       const t = tw.byCode.get(s.code);
       if (!t) { this.done(); return; }
-      if (tw.atLineEnd) { this.setLocked(true); return; }
+      if (tw.atLineEnd) { this.setLocked(true); this.tryLocked(); return; }
       this.setLocked(false);
       // Shift may only move while no type is on its way to the paper.
       if (s.shift !== this.holdingShift) {
         if (this.flying) return;
-        if (s.shift) tw.keyDown('ShiftLeft', { hold: true, force: this.shiftForce }); else tw.keyUp('ShiftLeft');
+        // The finger that last held Shift may still be lifting: only believe Shift is down once a finger is on it.
+        if (s.shift) { if (!tw.keyDown('ShiftLeft', { hold: true, force: this.shiftForce })) return; } else tw.keyUp('ShiftLeft');
         this.holdingShift = s.shift;
         return;
       }
@@ -124,7 +125,7 @@ export class Typist {
     }
 
     if (s.kind === 'space') {
-      if (tw.atLineEnd) { this.setLocked(true); return; }
+      if (tw.atLineEnd) { this.setLocked(true); this.tryLocked(); return; }
       this.setLocked(false);
       if (this.flying || !this.basketClear(null) || c.rocker.q > 0.012 || c.space.q > 0.004 || tw.isDown('Space') || tw.isDown('Backspace')) return;
       if (tw.keyDown('Space', { force: 2.2 })) this.done();
@@ -142,6 +143,23 @@ export class Typist {
       tw.returnCarriage();
       this.returning = true;
       this.done();
+    }
+  }
+
+  /**
+   * The line is locked, but the finger still comes down on each key that is asked for: the key sinks as far as
+   * the lock lets it and stops there. The character itself stays in the queue for the next line.
+   */
+  private tryLocked(): void {
+    const tw = this.tw;
+    // Nothing more can be typed on this line, so Shift is let go (once the last capital has left the paper).
+    if (this.holdingShift && !this.flying) { tw.keyUp('ShiftLeft'); this.holdingShift = false; }
+    if (!tw.lineLockIn || this.flying || Math.abs(tw.core.carriage.v) > 2e-3 || tw.fingers.some((f) => !f.id.startsWith('Shift'))) return;
+    for (const s of this.queue) {
+      if ((s.kind !== 'char' && s.kind !== 'space') || s.tried) continue;
+      s.tried = true;
+      if (s.kind === 'space') tw.keyDown('Space', { force: 2.2 }); else tw.keyDown(s.code, { force: s.force ?? tw.touch });
+      return;
     }
   }
 

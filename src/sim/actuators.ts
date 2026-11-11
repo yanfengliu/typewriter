@@ -15,6 +15,8 @@ export const FINGER = {
   liftK: 800,
   liftC: 6,
   rise: 0.002,
+  /** A guided (slow) finger does not push harder than this (N), whatever depth it is asked for. */
+  maxPush: 10,
 };
 
 export type FingerPhase = 'press' | 'hold' | 'lift' | 'done';
@@ -70,6 +72,7 @@ export class Finger {
       // Guided press: follow the requested depth with a bounded, smooth approach.
       const target = this.released ? -FINGER.rise : this.opts.servo();
       b.v = Math.max(-0.25, Math.min(0.25, (target - b.q) / 0.02));
+      if (b.v > 0 && this.contact.force > FINGER.maxPush) b.v = 0;
       this.work += this.contact.force * b.v * sys.h;
       if (this.released && b.q <= -FINGER.rise * 0.9) this.finish();
       return;

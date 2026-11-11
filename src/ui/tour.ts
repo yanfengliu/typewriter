@@ -36,6 +36,10 @@ export interface TourCtl {
   playToEvent(type: string, maxSeconds?: number): Promise<void>;
   seen(type: string): boolean;
   speed(scale: number): void;
+  /** Change the view in the middle of a step (a second camera position for the second half of the action). */
+  view(v: StepView, seconds?: number): void;
+  /** Hold the picture for this many real seconds, e.g. while the camera moves. Never returns if the step was left. */
+  wait(seconds: number): Promise<void>;
 }
 
 export interface TourStep {
@@ -172,6 +176,8 @@ export class Tour {
       playToEvent: (type, max) => ctl.playTo(() => this.seenEvents.has(type), max),
       seen: (type) => this.seenEvents.has(type),
       speed: (s) => this.host.setSpeed(s),
+      view: (v, seconds = 1.2) => { if (alive()) this.host.applyView(v, seconds); },
+      wait: (seconds) => new Promise<void>((resolve) => { window.setTimeout(() => { if (alive()) resolve(); }, seconds * 1000); }),
     };
     // Give the camera a moment to arrive before anything moves.
     this.host.setPaused(true);

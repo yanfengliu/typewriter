@@ -112,7 +112,7 @@ export const PART_INFO: Record<string, PartInfo> = {
     what: 'A wide bar on two levers pivoting in the middle of the machine.',
     how: 'Its rear end lifts an arm of the dog rocker directly. The escapement trips exactly as for a letter, but no typebar moves, so the carriage steps without printing.',
   },
-  backspace: { name: 'Backspace key', what: 'A key lever linked to a pawl on the carriage rack.', how: 'The pawl pushes the rack back a little more than one tooth; the carriage then settles forward onto the previous tooth.' },
+  backspace: { name: 'Backspace key', what: 'A key lever linked to a pawl on the carriage rack.', how: 'The pawl pushes the rack back a little more than one tooth and is wedged there at the bottom of the stroke, so the carriage cannot coast further; the carriage then settles forward onto the previous tooth.' },
   vibrator: {
     name: 'Ribbon vibrator',
     what: 'A light fork holding the ribbon just in front of the paper.',
@@ -123,6 +123,12 @@ export const PART_INFO: Record<string, PartInfo> = {
   ribbon: { name: 'Ink ribbon', what: 'A cloth band soaked in ink, running from spool to spool through the vibrator.', how: 'The type face never touches the paper directly: it squeezes the ribbon against it and the ink transfers in the shape of the character.' },
   spool: { name: 'Ribbon spool', what: 'One of two spools the ribbon winds between.', how: 'The ribbon creeps along a little with every letter space so each blow lands on fresh ink.' },
   spoolCup: { name: 'Spool cups and guides', what: 'The seats for the ribbon spools and the posts that guide the ribbon toward the printing point.', how: 'They hold the ribbon path steady.' },
+  lineLock: {
+    name: 'Line lock comb',
+    what: 'A slotted strip lying across the machine under the key levers, with a post that reaches up to the carriage.',
+    how: 'Normally every key lever drops into one of its slots. As the carriage takes the last step of a line, a lug on it pushes the comb 2 mm sideways through a small spring, and the teeth come to stand under the levers: a key goes down a couple of millimetres and stops, so you cannot type over the last letter. A finger on the post locks the space bar the same way. Returning the carriage lets the comb spring back.',
+  },
+  lockSpring: { name: 'Line lock return spring', what: 'A light coil spring from the end of the lock comb to a pin on the frame.', how: 'It pulls the comb back to its free position as soon as the carriage leaves the right margin.' },
   bell: { name: 'Bell', what: 'A small brass bell under the carriage.', how: 'It warns you, eight spaces before the right margin, that the line is nearly full.' },
   bellHammer: { name: 'Bell hammer', what: 'A sprung clapper beside the bell.', how: 'A cam on the carriage pushes it back as the carriage passes, then lets go. The hammer springs forward, strikes the bell once and rests clear of it.' },
   paper: { name: 'Paper', what: 'A letter-size sheet wrapped around the platen.', how: 'Every mark on it is placed by the physics: where the carriage, platen and shift actually were at the instant of the blow, and as dark as the blow was hard.' },

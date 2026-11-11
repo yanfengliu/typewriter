@@ -9,6 +9,7 @@ import { PaperView } from './view/paper';
 import { buildTypeAction, legendAtlas } from './view/parts/typeaction';
 import { buildCarriage } from './view/parts/carriage';
 import { buildFrame } from './view/parts/frame';
+import { buildLineLock } from './view/parts/linelock';
 
 export class App {
   readonly tw = new Typewriter();
@@ -37,6 +38,7 @@ export class App {
     buildTypeAction(this.rig, this.tw, legendMat, atlas.cell);
     buildCarriage(this.rig, this.tw);
     buildFrame(this.rig, this.tw, legendMat, atlas.cell);
+    buildLineLock(this.rig, this.tw);
     this.paper = new PaperView(this.rig, this.tw, this.stage.renderer);
     this.stage.scene.add(this.rig.root);
     // Let everything settle onto its stops before the first frame.

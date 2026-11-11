@@ -5,7 +5,7 @@
 import { Body, BodyDef, Constraint, Force, System } from './solver';
 import { CoordSpring, FnConstraint, FnForce, Limit, PointPlane, Rod } from './elements';
 import {
-  AUX_FULCRUM, BACKSPACE, CARRIAGE_X0, CHAR_PITCH, ESC, F, GLYPH_PITCH, KEY_DIP, KEY_FULCRUM, MARGIN, PLATEN_AXIS, PLATEN_R,
+  AUX_FULCRUM, BACKSPACE, CARRIAGE_X0, CHAR_PITCH, ESC, F, GLYPH_PITCH, KEY_DIP, KEY_FULCRUM, LOCK, LOCK_ENGAGE, MARGIN, PLATEN_AXIS, PLATEN_R,
   RIBBON_LEVER, ROW_Y, ROW_Z, SHIFT, SPACE_BAR, TILT, TOOTH_PITCH, U, UBAR_TRAVEL, WHEEL_RATIO, X,
 } from './layout';
 import { Vec3, addScaled, scale } from './vec';
@@ -24,18 +24,26 @@ export const SPEC = {
   leverEngage: 0.06, leverPerLine: 0.2,
   hammerInertia: 2e-6, hammerK: 0.02, hammerCock: 0.4, bellAt: -0.05, bellRamp: 0.0024,
   backspaceStroke: 1.3,
+  /** Line-lock comb: its mass, return spring, the buffer spring the carriage pushes it through, and its slide. */
+  lockMass: 0.025, lockReturnK: 40, lockReturnPreload: 0.15, lockBufferK: 800, lockDamping: 5, lockFriction: 0.03,
 };
+
+/** Where the lock comb comes to rest with the carriage standing at travel c (buffer against return spring). */
+export function lockRest(c: number): number {
+  const push = c - (MARGIN.right * CHAR_PITCH - LOCK.lead);
+  return Math.max(0, Math.min(LOCK.travel, (SPEC.lockBufferK * push - SPEC.lockReturnPreload) / (SPEC.lockBufferK + SPEC.lockReturnK)));
+}
 
 export interface Core {
   ubar: Body; rocker: Body; looseDog: Body; wheel: Body;
   carriage: Body; cradle: Body; platen: Body;
   ribbonLever: Body; vibrator: Body;
-  shift: Body; space: Body; backspace: Body; lineLever: Body; hammer: Body;
+  shift: Body; space: Body; backspace: Body; lineLever: Body; hammer: Body; lockBar: Body;
   ubarStop: Limit; rockerStop: Limit; trip: PointPlane;
   toothLoose: FnConstraint; toothFixed: FnConstraint; ratchet: FnConstraint; holdLoose: FnConstraint; holdFixed: FnConstraint;
   marginLeft: Limit; marginRight: Limit;
   cradleDown: Limit; cradleUp: Limit; shiftRail: PointPlane;
-  spacePush: PointPlane; backPush: FnConstraint; pawl: FnConstraint; bellCam: FnConstraint; bellStop: Limit;
+  spacePush: PointPlane; spaceLock: Limit; lockBlock: Limit; lockBuffer: FnForce; backPush: FnConstraint; pawl: FnConstraint; bellCam: FnConstraint; bellStop: Limit;
   ribbonLink1: Rod; ribbonLink2: Rod;
   mainspring: FnForce;
   state: CoreState;
@@ -43,6 +51,8 @@ export interface Core {
   /** Points used by actuators and by the viewer (assembly coords). */
   points: { spaceTop: Vec3; shiftTopL: Vec3; shiftTopR: Vec3; backTop: Vec3; leverHandle: Vec3; leverPivot: Vec3; hammerPivot: Vec3; rockerArm: Vec3; spaceTip: Vec3; ubarTip: Vec3; ubarPin: Vec3; vibratorPin: Vec3; shoe: Vec3 };
   limits: { shiftMax: number; spaceMax: number; backMax: number; leverMax: () => number; cLeft: number; cRight: number; cBell: number };
+  /** How far the carriage's lug has squeezed the lock comb's buffer spring (m, 0 when they are apart). */
+  lockSqueeze: () => number;
 }
 
 /** Discrete state of latches and ratchets (everything else is in the bodies' q and v). */
@@ -168,6 +178,24 @@ export function buildCore(sys: System): Core {
   marginLeft.restitution = 0.2;
   marginRight.restitution = 0.1;
 
+  // --- Line lock: a comb under the key levers that the carriage pushes sideways at the end of the line ---
+  // Over the last 2.3 mm of travel a lug on the carriage meets a buffer spring on the comb and takes the comb
+  // along; its teeth come to stand under the key levers (and a finger on its post over the space lever's tail).
+  // The buffer is what lets the carriage finish its step while a key is still down in its slot, holding the comb.
+  const lockBar = G.b({ name: 'lockBar', kind: 'slide', axis: [-1, 0, 0], inertia: SPEC.lockMass, damping: SPEC.lockDamping, friction: SPEC.lockFriction });
+  G.f(new CoordSpring(lockBar, SPEC.lockReturnK, 0, -SPEC.lockReturnPreload), 'lockReturn');
+  G.c(new Limit(lockBar, 0, 1), 'lockRest').restitution = 0.1;
+  G.c(new Limit(lockBar, LOCK.travel, -1), 'lockOverthrow');
+  const lockFrom = cRight - LOCK.lead;
+  const squeeze = () => carriage.q - lockFrom - lockBar.q;
+  const lockBuffer = G.f(new FnForce(
+    () => { const d = squeeze(); if (d > 0) { lockBar.f += SPEC.lockBufferK * d; carriage.f -= SPEC.lockBufferK * d; } },
+    () => { const d = squeeze(); return d > 0 ? 0.5 * SPEC.lockBufferK * d * d : 0; },
+  ), 'lockBuffer');
+  // A key lever that is down in its slot stands in the comb's way (switched by the machine, see lockLogic).
+  const lockBlock = G.c(new Limit(lockBar, LOCK_ENGAGE - 2e-5, -1), 'lockBlock');
+  lockBlock.enabled = false;
+
   // --- Carriage: shift cradle, platen, line-space lever ------------------------------------------
   G.use('shift');
   const cradle = G.b({ name: 'cradle', parent: carriage, kind: 'slide', axis: U, inertia: SPEC.cradleMass, mass: SPEC.cradleMass, damping: 3 });
@@ -224,6 +252,9 @@ export function buildCore(sys: System): Core {
   const rockerArm: Vec3 = [0, ESC.rockerPivot[1], ESC.rockerPivot[2] + ESC.spaceArm];
   const spaceTip: Vec3 = [0, rockerArm[1] - 0.0005, rockerArm[2]];
   const spacePush = G.c(new PointPlane(space, spaceTip, rocker, rockerArm, [0, -1, 0]), 'spacePush');
+  const spaceLock = G.c(new Limit(space, spaceMax * LOCK.spaceDip, -1), 'lineLock:Space');
+  spaceLock.restitution = 0.1;
+  spaceLock.enabled = false;
 
   // --- Backspace: a pawl shoves the rack back a little more than one tooth -------------------------
   G.use('back');
@@ -242,6 +273,15 @@ export function buildCore(sys: System): Core {
     c.coord(backspace, -backGain);
     return st.backLatch - backGain * (backspace.q - backEngage) - carriage.q;
   }), 'backPush');
+  // At the bottom of its stroke the pawl is wedged between the rack tooth and a stop on the frame, so the
+  // carriage cannot run on past it under its own momentum (the tooth gap is a little wider than the pawl).
+  // Without this a firm backspace, or one near the end of the line where the mainspring pulls least, let the
+  // carriage coast a second tooth back. On the way up the pawl rides out of the rack, so it never traps it.
+  G.c(new FnConstraint((c) => {
+    if (!st.backIn || backspace.q < 0.9 * backMax) return 1;
+    c.coord(carriage, 1);
+    return carriage.q - (st.backLatch - backGain * (backMax - backEngage)) + BACKSPACE.play;
+  }), 'backWedge');
 
   // --- Bell: a cam on the carriage cocks the hammer, then lets it fly ------------------------------
   G.use('bell');
@@ -260,11 +300,12 @@ export function buildCore(sys: System): Core {
   }), 'bellCam');
 
   return {
-    ubar, rocker, looseDog, wheel, carriage, cradle, platen, ribbonLever, vibrator, shift, space, backspace, lineLever, hammer,
+    ubar, rocker, looseDog, wheel, carriage, cradle, platen, ribbonLever, vibrator, shift, space, backspace, lineLever, hammer, lockBar,
     ubarStop, rockerStop, trip, toothLoose, toothFixed, ratchet, holdLoose, holdFixed, marginLeft, marginRight, cradleDown, cradleUp, shiftRail,
-    spacePush, backPush, pawl, bellCam, bellStop, ribbonLink1, ribbonLink2, mainspring, state: st, groups,
+    spacePush, spaceLock, lockBlock, lockBuffer, backPush, pawl, bellCam, bellStop, ribbonLink1, ribbonLink2, mainspring, state: st, groups,
     points: { spaceTop: [0, SPACE_BAR.y, SPACE_BAR.z], shiftTopL: [-SHIFT.x, ROW_Y[3], ROW_Z[3]], shiftTopR: [SHIFT.x, ROW_Y[3], ROW_Z[3]], backTop, leverHandle, leverPivot, hammerPivot, rockerArm, spaceTip, ubarTip, ubarPin, vibratorPin, shoe },
     limits: { shiftMax, spaceMax, backMax, leverMax, cLeft, cRight, cBell },
+    lockSqueeze: () => Math.max(0, squeeze()),
   };
 }
 

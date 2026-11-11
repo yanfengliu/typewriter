@@ -86,9 +86,47 @@ export const KEY_FULCRUM = { y: 0.036, z: -0.1 };
 export const AUX_FULCRUM = { y: 0.024, z: -0.02 };
 export const RAILS = { y: 0.127, front: -0.052, rear: -0.08, radius: 0.003 };
 export const SUBLEVER = { y: 0.05, z: 0.03, out: 0.032, dx: 0.0016 };
-export const SPACE_BAR = { y: 0.071, z: 0.181, dip: 0.012, width: 0.13 };
+/** armX: where its two levers run, between key levers; tailHalf: half the height of their rear arms. */
+export const SPACE_BAR = { y: 0.071, z: 0.181, dip: 0.012, width: 0.13, armX: 0.054625, tailHalf: 0.003 };
 export const SHIFT = { x: 0.1235, railZ: -0.106, railY: 0.118, dip: 0.017 };
-export const BACKSPACE = { x: 0.1045 + 1.4 * KEY_PITCH, row: 0 };
+/** play: how much wider a rack tooth gap is than the backspace pawl standing in it. */
+export const BACKSPACE = { x: 0.1045 + 1.4 * KEY_PITCH, row: 0, play: 0.0003 };
+/** Thickness of the stamped key levers, and half the height of their bar (above and below the fulcrum line). */
+export const KEY_LEVER_T = 0.0012;
+export const KEY_LEVER_HALF = 0.0035;
+
+// --- Line lock ------------------------------------------------------------------------------------
+/**
+ * A comb lying across the machine under the key levers, a little in front of their fulcrum. At rest every lever
+ * drops into a slot of the comb. At the end of the line the carriage pushes the comb sideways (toward -X, the
+ * way the carriage itself travels) and the teeth come to stand under the levers.
+ */
+export const LOCK = {
+  /** Where the comb crosses under the key levers. */
+  z: -0.063,
+  thickness: 0.0015,
+  /** Gap between a lever's lower edge and the tops of the teeth: the free play of a locked key, at the comb. */
+  play: 0.0004,
+  /** Width of the slots; the levers stand in the middle of them. */
+  slot: 0.002,
+  /** Overthrow stop of the comb. */
+  travel: 0.0024,
+  /** The carriage meets the comb's buffer spring this far before the right margin stop. */
+  lead: 0.0023,
+  /** Fraction of its travel the space bar can still move when locked. */
+  spaceDip: 0.12,
+  /** The post that reaches up to the carriage: X of its face toward the carriage lug (comb at rest), thickness, Z band. */
+  seatX: 0.0609,
+  postT: 0.0008,
+  postZ: [-0.066, -0.06] as [number, number],
+  /** Free length of the buffer spring, and the height band in which the carriage lug meets it. */
+  buffer: 0.006,
+  lugY: [0.119, 0.13] as [number, number],
+};
+/** Comb travel at which the edge of a tooth reaches the side of a lever standing in its slot. */
+export const LOCK_ENGAGE = (LOCK.slot - KEY_LEVER_T) / 2;
+/** Key lever angle at which its lower edge meets a tooth standing under it. */
+export const LOCK_ANGLE = LOCK.play / (LOCK.z - KEY_FULCRUM.z);
 
 const ROWS: Array<{ codes: string[]; lower: string; upper: string; offset: number }> = [
   { codes: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal'], lower: '1234567890-=', upper: '!@#$%^&*()_+', offset: 0 },
@@ -188,7 +226,7 @@ function buildKey(code: string, lower: string, upper: string, row: number, x: nu
     heelAngle = Math.atan2(d[0] * perp[0] + d[1] * perp[1] + d[2] * perp[2], d[0] * restDir[0] + d[1] * restDir[1] + d[2] * restDir[2]) - Math.PI / 2 - TRAVEL / 2;
   }
   const heel = heelAt(heelAngle);
-  const leverTop = KEY_FULCRUM.y + 0.0035;
+  const leverTop = KEY_FULCRUM.y + KEY_LEVER_HALF;
 
   const k: KeyGeom = {
     code, lower, upper, row, slot, x, top, keyAngle, fulcrum,
