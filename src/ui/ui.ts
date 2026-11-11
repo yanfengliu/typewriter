@@ -159,7 +159,7 @@ export class UI implements TourHost {
     const slice = (this.sliceSl = slider('Slice', 0, 1, 0.01, 0, (v) => { m.sliceBack = null; m.slice = v < 0.01 ? null : 0.16 - v * 0.32; }, (v) => (v < 0.01 ? 'off' : `${Math.round(v * 100)}%`)));
     this.colorTg = toggle('Colour by job', false, (v) => { m.colorBySystem = v; m.invalidate(); }, 'Tint each part by the job it does');
     const labelsTg = toggle('Labels', false, (v) => { this.showLabels = v; if (!v) this.labelLayer.replaceChildren(), this.labels.clear(); }, 'Name the main parts');
-    const scopeTg = toggle('Instruments', false, (v) => { this.scope.el.hidden = !v; }, 'Chart the last keystroke and the energy ledger');
+    const scopeTg = toggle('Instruments', false, (v) => { this.scope.el.hidden = !v; document.body.classList.toggle('with-scope', v); }, 'Chart the last keystroke and the energy ledger');
     const forceTg = this.forceTg = toggle('Forces', false, (v) => { this.forces.enabled = v; this.forceLegend.hidden = !v; }, 'Draw the forces the solver computes: finger, links, impact, spring');
     const shots: Array<[string, string]> = [['typist', 'Typist'], ['side', 'Side'], ['top', 'Top'], ['rear', 'Rear'], ['linkage', 'Linkage'], ['print', 'Print point'], ['escapement', 'Escapement'], ['drum', 'Spring']];
     const right = h('aside', { class: 'panel look', 'aria-label': 'Look inside' },
@@ -188,7 +188,7 @@ export class UI implements TourHost {
     );
     this.root.append(top, this.tour.panel, this.infoCard, right, this.scope.el, bottom, this.labelLayer, this.tooltip, this.toast);
     // Clicking a control must not steal the keyboard from the typewriter.
-    this.root.addEventListener('pointerup', () => window.setTimeout(() => { const a = document.activeElement as HTMLElement | null; if (a && a.tagName === 'BUTTON') a.blur(); }, 0));
+    this.root.addEventListener('pointerup', () => window.setTimeout(() => { const a = document.activeElement as HTMLElement | null; if (a && (a.tagName === 'BUTTON' || a.tagName === 'INPUT')) a.blur(); }, 0));
     this.root.addEventListener('pointerdown', () => this.sound.unlock());
   }
 
