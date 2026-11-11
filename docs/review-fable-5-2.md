@@ -198,3 +198,24 @@ On `595d48b`: `npm run check` (type check and 42 tests, all passing) and `npm ru
 ## Round outcome
 
 The round 0 repairs hold: snapshots replayed exactly in 772 trials, backspace is right from rest over twelve columns and 2.6 to 16 N, the typist loses nothing at the margin, and every documented number was reproduced. Three defects are repaired with tests (F16, F18, F19, the last a serious older bug reachable from the New sheet button). Three are real and left as recorded limits because they need keys pressed directly, outside what the typist layer does (F15, F17, F20); F15 is the one worth the owner's attention, since a cure means a further interlock. The repairs in `595d48b` are small and were not sent to a third round.
+
+# After round 1: the owner asked for the interlock (F15)
+
+This is a labelled later change, not part of the closed round above. Told of F15, the owner chose to have the interlock built.
+
+## What was built
+
+A trip lock on the escapement itself: commit `44dc5ee` (simulation and tests), `7948776` (the two parts drawn, parts cards, `docs/physics.md`), `c980360` (a tour step). A tab under the carriage's rear member moves in behind a finger on the dog rocker's shaft once the carriage is 0.15 mm into its last step. From then on the rocker can swing 0.05 rad, where the fixed dog needs 0.079 rad to enter the wheel. A stroke that got past the comb ends with its typebar against the universal bar, 11° short of the paper. If the rocker is still swung out when the tab arrives, the finger stands in the tab's way and the carriage waits. The two stops are switched from positions and placed where the part stands when switched on, the same way as the comb's after F16, and are saved in snapshots.
+
+## Findings and disposition (continued)
+
+| ID | Finding | Disposition and reason | Repair or follow-up |
+|---|---|---|---|
+| F15 | (as in round 1) | Now repaired, at the owner's request. | Trip lock, `44dc5ee`. A space or a letter pressed 20 to 100 ms after the last letter of a line: 0 of 34 timings shift the next line (before: 8 of 17 for the space bar, more for a letter) and nothing extra prints. Pressed 0 to 20 ms after it (two typebars at the paper together), the second letter prints on top of the first as it does anywhere on the line, and the next line still starts in the first column in all 22 timings. A key struck with 3.2 to 14 N past a held-off comb stops at 88.6 to 88.9° of 100 with the rocker at its limit. Tests "a stroke that slips past the comb during the last step cannot trip the escapement or shift the next line", "a key that gets past the comb is stopped at the universal bar, however hard it is struck", "if the rocker is still swung out when the tab arrives, the carriage waits for it"; all three fail with the lock switched off. |
+| F21 | A key struck while the carriage is being returned prints on the fly and leaves the next line one column in. Found by the owner agent while testing the trip lock: struck 60 to 180 ms into a return from column 40, the next letter landed in column 11. It is the cause of F15 acting where the trip lock cannot reach: the escapement is tripped while the wheel stands still. | Accepted as real, not repaired, recorded as a limit: only a direct `keyDown` during `returnCarriage` does it. The typist layer presses nothing until the return is over, and holds a return back while any finger is on a key. | `docs/physics.md` §7. |
+
+## Verification
+
+On `c980360`: `npm run check` (type check and 45 tests, all passing) and `npm run build`. In a headless browser at 1920×1080: `scripts/smoke.sh` (text right, no console errors, 0.99 of real time at 212 frames a second on a lightly loaded machine); `scripts/walk-tour.sh` (all 18 steps finish, no console errors); the finger and tab looked at with the carriage at the margin, two columns before it, and with Shift held and the rocker fully swung; the finger's clearances computed over the rocker's whole swing (shift rail 1.6 mm with Shift down, bell cam 1.6 mm, rack 5.6 mm). One tour walk stalled at step 17 while the test suite and the build were running at the same time on the machine; it did not recur in two walks run alone, and its cause was not found.
+
+The trip lock is new mechanism code and has not had an independent review.
