@@ -138,9 +138,13 @@ export const TRIP_LOCK = {
   start: 0.00015,
   /** Swing the tab still leaves the rocker: 1.4 mm at the dogs, where the fixed dog needs 2.2 mm to enter the wheel. */
   angle: 0.05,
-  /** The finger: where it stands across the machine, its tip relative to the rocker's pivot (forward, up), half its thickness. */
+  /**
+   * The finger: where it stands across the machine, its tip relative to the rocker's pivot (forward, up), half its
+   * thickness. The tip leans forward so that, swung fully back, it stays in front of the shift rail (which comes
+   * up and forward when Shift is down) and below the rack and the bell cam that pass over it.
+   */
   fingerX: 0.0235,
-  tip: [0.006, 0.0423] as [number, number],
+  tip: [0.0116, 0.0412] as [number, number],
   fingerHalf: 0.00075,
   /** How far down the tab hangs (it has to clear the tops of the frame's side plates as the carriage travels). */
   tabBottom: 0.1205,

@@ -56,7 +56,7 @@ export const PART_INFO: Record<string, PartInfo> = {
   rocker: {
     name: 'Dog rocker (with fixed dog)',
     what: 'A small rocking frame under the escape wheel carrying two "dogs" that can block the wheel\'s teeth.',
-    how: 'Pushed by the universal bar (or the space bar) it rocks back, sliding the fixed dog into the wheel and the loose dog out. When it rocks home again the dogs swap back. The carriage can never run free: one dog or the other is always in the wheel.',
+    how: 'Pushed by the universal bar (or the space bar) it rocks back, sliding the fixed dog into the wheel and the loose dog out. When it rocks home again the dogs swap back. The carriage can never run free: one dog or the other is always in the wheel. The finger on the end of its shaft is the trip lock: at the end of a line a tab on the carriage stands behind it, and the rocker cannot swing far enough to trip.',
   },
   looseDog: {
     name: 'Loose dog',
@@ -85,7 +85,7 @@ export const PART_INFO: Record<string, PartInfo> = {
   truck: {
     name: 'Carriage',
     what: 'The sliding frame that carries the platen and paper, with the toothed rack underneath and the margin stops in front.',
-    how: 'The paper moves, not the printing point. After each letter the carriage steps one tooth to the left so the next letter lands to the right of the last.',
+    how: 'The paper moves, not the printing point. After each letter the carriage steps one tooth to the left so the next letter lands to the right of the last. Under its rear edge hangs a small tab: as the carriage takes the last step of a line the tab moves in behind a finger on the dog rocker, so that nothing can trip the escapement when the carriage has nowhere left to go.',
   },
   cradle: {
     name: 'Shift cradle',
@@ -126,7 +126,7 @@ export const PART_INFO: Record<string, PartInfo> = {
   lineLock: {
     name: 'Line lock comb',
     what: 'A slotted strip lying across the machine under the key levers, with a post that reaches up to the carriage.',
-    how: 'Normally every key lever drops into one of its slots. As the carriage takes the last step of a line, a lug on it pushes the comb 2 mm sideways through a small spring, and the teeth come to stand under the levers: a key goes down a couple of millimetres and stops, so you cannot type over the last letter. A finger on the post locks the space bar the same way. Returning the carriage lets the comb spring back.',
+    how: 'Normally every key lever drops into one of its slots. As the carriage takes the last step of a line, a lug on it pushes the comb 2 mm sideways through a small spring, and the teeth come to stand under the levers: a key goes down a couple of millimetres and stops, so you cannot type over the last letter. A finger on the post locks the space bar the same way. Returning the carriage lets the comb spring back. A key that was already on its way down when the comb arrived is not caught by it; that is what the trip lock on the dog rocker is for.',
   },
   lockSpring: { name: 'Line lock return spring', what: 'A light coil spring from the end of the lock comb to a pin on the frame.', how: 'It pulls the comb back to its free position as soon as the carriage leaves the right margin.' },
   bell: { name: 'Bell', what: 'A small brass bell under the carriage.', how: 'It warns you, eight spaces before the right margin, that the line is nearly full.' },

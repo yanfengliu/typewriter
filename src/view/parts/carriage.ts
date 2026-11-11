@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import type { Typewriter } from '../../sim/machine';
-import { CARRIAGE_X0, CHAR_PITCH, DRUM, ESC, MARGIN, PLATEN_AXIS, PLATEN_LEN, PLATEN_R, RAILS, SHIFT } from '../../sim/layout';
+import { CARRIAGE_X0, CHAR_PITCH, DRUM, ESC, MARGIN, PLATEN_AXIS, PLATEN_LEN, PLATEN_R, RAILS, SHIFT, TRIP_LOCK } from '../../sim/layout';
 import { SPEC } from '../../sim/mechanism';
 import type { Vec3 } from '../../sim/vec';
 import { MAT, Part, Rig } from '../rig';
@@ -47,6 +47,12 @@ export function buildCarriage(rig: Rig, tw: Typewriter): { carriageParts: Part[]
 
   // --- Rocker with the fixed dog; the loose dog slides on it
   const P = ESC.rockerPivot;
+  // Trip-lock finger: a flat strip from the shaft to its tip, square at the top where the carriage's tab stands behind it.
+  const fLen = Math.hypot(TRIP_LOCK.tip[0], TRIP_LOCK.tip[1]), fn: [number, number] = [(TRIP_LOCK.tip[1] / fLen) * TRIP_LOCK.fingerHalf, (-TRIP_LOCK.tip[0] / fLen) * TRIP_LOCK.fingerHalf];
+  const fTip: [number, number] = [ESC.rockerPivot[2] + TRIP_LOCK.tip[0], ESC.rockerPivot[1] + TRIP_LOCK.tip[1]];
+  const finger: Array<[number, number]> = [
+    [ESC.rockerPivot[2] - fn[0], ESC.rockerPivot[1] - fn[1]], [ESC.rockerPivot[2] + fn[0], ESC.rockerPivot[1] + fn[1]], [fTip[0] + fn[0], fTip[1] + fn[1]], [fTip[0] - fn[0], fTip[1] - fn[1]],
+  ];
   const rocker = rig.part('rocker', { kind: 'rocker', sys: 'escapement', body: c.rocker, explode: [0, -0.055, -0.13], anchor: [0.0045, P[1] + 0.02, zw] });
   const yDog0 = W[1] - R - 0.0022, yDog1 = W[1] - R + 0.0026;
   rocker.add(merge([
@@ -56,6 +62,9 @@ export function buildCarriage(rig: Rig, tw: Typewriter): { carriageParts: Part[]
     box([0, P[1] + ESC.pushR, P[2] + 0.0007], [0.0086, 0.0044, 0.0016]),
     tube([-0.008, P[1], P[2]], [-0.008, P[1], P[2] + ESC.spaceArm + 0.002], 0.0015, 8),
     box([-0.004, P[1] + 0.0008, P[2] + ESC.spaceArm], [0.01, 0.0016, 0.004]),
+    // trip-lock finger: on the shaft's far end, outside its bearing, reaching up toward the carriage
+    tube([0.014, P[1], P[2]], [TRIP_LOCK.fingerX + 0.0008, P[1], P[2]], 0.0016, 10),
+    plate(finger, 0.0016, zy(TRIP_LOCK.fingerX)),
   ]), MAT.steelDark);
   // fixed dog: stands in front of the wheel and swings into it
   rocker.add(slab([ESC.drop / 1, yDog0, zw + 0.003], [0.0043, yDog1, zw + 0.005]), MAT.blued);
@@ -92,6 +101,11 @@ export function buildCarriage(rig: Rig, tw: Typewriter): { carriageParts: Part[]
   rails.add(merge([tube([-0.2, RAILS.y, RAILS.front], [0.2, RAILS.y, RAILS.front], RAILS.radius, 14), tube([-0.2, RAILS.y, RAILS.rear], [0.2, RAILS.y, RAILS.rear], RAILS.radius, 14)]), MAT.nickel);
 
   const X0 = CARRIAGE_X0, half = 0.15;
+  const [tipZ, tipY] = TRIP_LOCK.tip, a = TRIP_LOCK.angle;
+  const tabZ = P[2] + tipZ * Math.cos(a) - tipY * Math.sin(a) - TRIP_LOCK.fingerHalf;
+  // The tab's leading face reaches the side of the finger at carriage travel cTrip, and it is wide enough to
+  // cover the finger with the carriage at the margin stop.
+  const tabX = TRIP_LOCK.fingerX + 0.0008 + c.limits.cTrip, tabW = c.limits.cRight - c.limits.cTrip + 0.0024;
   const exC: Vec3 = [0, 0.11, -0.05];
   const truck = rig.part('truck', { kind: 'truck', sys: 'carriage', body: c.carriage, explode: exC, anchor: [X0 + 0.12, 0.136, -0.06] });
   const rackY = W[1] + ESC.pinionR;
@@ -104,6 +118,9 @@ export function buildCarriage(rig: Rig, tw: Typewriter): { carriageParts: Part[]
     slab([X0 - 0.006, 0.132, -0.09], [X0 + 0.006, 0.136, -0.044]),
     // bearing shoes on the rails
     ...[-0.11, 0.11].flatMap((dx) => [box([X0 + dx, 0.1312, RAILS.front], [0.02, 0.0024, 0.009]), box([X0 + dx, 0.1312, RAILS.rear], [0.02, 0.0024, 0.009])]),
+    // trip-lock tab: hangs under the truck's rear member and comes to stand behind the rocker's finger over the
+    // last step of the line. Its face is where the back of the finger is with the rocker at the angle it is left.
+    slab([tabX, TRIP_LOCK.tabBottom, tabZ - 0.0025], [tabX + tabW, 0.132, tabZ]),
     // draw band lug and bell trip cam
     slab([X0 + 0.133, 0.118, -0.072], [X0 + 0.137, 0.132, -0.068]),
     slab([c.points.hammerPivot[0] + c.limits.cBell, 0.1235, -0.09], [c.points.hammerPivot[0] + c.limits.cBell + 0.0026, 0.132, -0.086]),
