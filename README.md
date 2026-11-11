@@ -55,6 +55,7 @@ A typist layer queues what you type and strikes each key as soon as the machine 
 - The frame, paper and ribbon do not flex. The paper follows the platen without slipping.
 - Typebars cannot collide with each other; the typist layer prevents the situation instead of simulating a jam.
 - The ratchets' tooth pick-up, the bell's one-way trip, and whether a tooth of the lock comb is beside a key lever or under it, are discrete latches driven by the simulated positions, not contact geometry.
+- The line lock holds every key that is up when the carriage reaches the margin, which covers all typing. A key pressed directly while the carriage is taking its last step can beat it, and the next line then starts one column in ([docs/physics.md](docs/physics.md), section 7).
 - A burst of very fast continuous typing runs at about real time on a desktop CPU with little to spare; on a slower machine the picture falls a little behind and the status line says so.
 - Sound is synthesised from contact events and their strength. It is not a physical model of the sound.
 - The machine is a generic mid-century desktop design with carriage shift, not a copy of a particular model.

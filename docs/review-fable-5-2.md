@@ -97,3 +97,104 @@ Bounds. Timing could not be measured cleanly: other work was loading the machine
 ## Round outcome
 
 No error found in the solver's mathematics. One high finding (F0) and two medium ones (F1, F2) repaired with tests that fail without the repair; low findings repaired or recorded. F8 is kept as designed. The repairs, in particular the lock comb and the backspace wedge, are new mechanism code that this round did not see: they go to round 1.
+
+# Review 1: implementation
+
+## Target
+
+Repository `typewriter`, branch `fable_5_2`, commit `471713e` (the round 0 repairs; base `a84edde`): the line lock, the backspace wedge, snapshots, dry friction, the new tests, and the numbers in `docs/physics.md`. While the review ran, the branch moved to `2c71a62`, a fleet canon sync that changes `AGENTS.md` only.
+
+## Reviewers and coverage
+
+One reviewer: a Claude subagent on the Opus model, started with a fresh context and no part in writing the code, working read-only (its mutation runs used a `git archive` copy outside the repository). Lens: do the round 0 repairs hold, and what is wrong with the new mechanism code. Not covered, by its own account: the view and interface, speed, timestep convergence, a guided (slow) backspace, snapshot moments outside its four scenarios. No reviewer from a second model family took part.
+
+## Reports
+
+### Claude subagent on Opus (fresh context)
+
+Unchanged, except that its experiment scripts are named as it named them (`e2` to `e15` in its scratch folder); they were not kept.
+
+**Review of 471713e (round 1)**
+
+I found two Medium and two Low defects in the new code, plus one serious pre-existing defect; the snapshots held up and the documented numbers match. While I was working, `fable_5_2` moved to 2c71a62. That commit changes only AGENTS.md, so `src/`, `tests/` and `docs/` are identical to 471713e and everything below applies to it. My scripts (e2–e15) are in the scratchpad folder `review2/`. Mutation runs used a `git archive` copy there, never the repository.
+
+**Medium**
+
+1. **The line lock can be defeated by input that arrives just before the carriage reaches the margin.** The escapement then trips against the margin stop, the dog ends a tooth ahead, and the next line starts in column 11. Code: `src/sim/machine.ts:314-329` (lockLogic), `src/sim/mechanism.ts:255`.
+   - **Space bar:** `placeCarriage(74)`, `keyDown('KeyA')`, then `keyDown('Space', {force: 2.2})` 55–90 ms later. The carriage ends at 75 with `toothLoose - ratchet = 76` at 8 of 17 delays (e10).
+   - **A letter:** struck 30–70 ms after the last one, it does the same and prints at 74.6–75.0 (e3). Below about 55 ms this overlaps the documented typebar-clash limit.
+   - **Hold plus backspace:** J held on the lock at 3.2 N, then Backspace, prints `j@74.007`, then `j@75.000` at ink 0.33, and leaves the dog at 76 (e2, e4).
+   - **Consequence:** after a return, the next letter printed at column 11.007. I checked this for the letter case and the hold case.
+   - physics.md §3 names exactly this outcome as the reason for the space lock; §7 does not list the gap.
+   - The typist never strikes in this window: 70 random trials at the margin were clean. Only direct `keyDown` reaches it.
+   - The hold case comes from older behaviour: a key held for 1 s mid-line at 3.2 N spaces three columns and prints a second j one column on (ink 0.35). a84edde does the same.
+
+2. **The comb is yanked when `lockBlock` is switched on while already violated.** `machine.ts:328` enables it with its bound at `LOCK_ENGAGE - 2e-5` (`mechanism.ts:196`), but `lineLockIn` tests `> LOCK_ENGAGE` (`machine.ts:134`).
+   - **Scenario:** carriage at 75, a key held on the tooth (3.2 N, 8 N or a guided finger), then a return or a backspace. As the comb recedes, the lock lets go and the lever drops into its slot.
+   - **Printed:** "lockBlock on at 124.97 ms, comb before 0.3990 mm -> after 0.3800 mm, comb v -0.760 m/s". With a backspace it is -0.743 m/s.
+   - That is about 7 mJ injected in one substep. For comparison, the comb reaches 0.153 m/s when the carriage pushes it in and 0.036 m/s when it springs back.
+   - **Fix:** enable it only when `lockBar.q <= bound`.
+
+**Low**
+
+3. **A backspace pressed while the carriage is still stepping is lost (moves 0 columns).** Code: `backLatch = carriage.q` at `mechanism.ts:344`, wedge at `mechanism.ts:280-284`.
+   - **Scenario:** a letter at column 40, then `keyDown('Backspace')` 74–80 ms later, with the carriage 0.26–0.49 of a column into its step. It ends at 41.
+   - **Rate:** 1–5 of 161 delays at each of 4.5, 7 and 10 N; the same at column 74 (e7b, e7c).
+   - **Cause, from a trace:** the latch is taken at 40.714. The loose dog's spring drives the wheel back with the carriage as far as the retaining pawl (39.945). The wedge stops the carriage at 39.298, only 0.65 of a tooth behind the wheel, so the pinion ratchet never clicks.
+   - It never moves 2 columns now; a84edde moved 2–4 columns in most of the same runs. The typist cannot trigger this.
+
+4. **The platen can come to rest where its group never sleeps.** The new friction clamp (`solver.ts:340-344`) holds the platen anywhere with |sin 24q| <= 0.0833, but `isQuiet('feed')` (`machine.ts:186`) requires less than 0.08.
+   - 198 returns (every column, line spacing 1–3) all came to rest. The worst resting value was 0.0759 (a blank line at spacing 3); at spacing 1 it was 0.069.
+   - I could make the machine never rest only by pressing New sheet during a return: the feed group was still awake after 10 s, |sin| 0.0815, platen speed 0. a84edde comes to rest in that run. So this is latent.
+
+**Pre-existing, High (not from this commit)**
+
+Pressing New sheet during a carriage return sets `platen.q = 0` while the line pawl is still engaged (`machine.ts:240`; the latch is kept from `mechanism.ts:339`). The platen is flung at 2·10³ to 5·10⁴ rad/s and ends tens of thousands of lines off. a84edde behaves the same, and the button (`ui.ts:192`) can be pressed at any time.
+
+**Tests (item 5)**, on the scratch copy:
+- Wedge removed: the backspace test goes red ("from column 40 with 7 N: now at 38.000").
+- `lockBlock` never enabled: "holds the lock comb off" goes red.
+- Per-key lock latch not restored: the snapshot tests stay green. This is harmless — `lockLogic` recomputes the latch from positions before the next solve, so no test could catch it.
+- Extra mutations: held-dog memory not restored, red; fingertip contact not restored, red (one of the seven items the doc lists); the old bell rest rule, "rest at every column" red.
+
+**Checked and found correct**
+- **Snapshots:** a harness comparing an exact digest of the state after every step replayed 772 snapshots for 100 ms each, with no divergence. The four scenarios were:
+  - the comb held off by a key in its slot, then released;
+  - backspaces with the wedge in, and mid-step;
+  - keys and space held while arriving at the margin, then a return;
+  - two key trains falling asleep.
+  The same harness flags a deliberately broken restore in 17 of 35 replays.
+- **Typist at the margin:** three overfull lines, auto return over 150 letters, capitals, space, backspace, a backspace queued behind waiting letters, and 70 random-timing trials. Nothing was lost, doubled, printed outside columns 10–74 or between columns; no stalls; the machine always came to rest.
+- **Lock:** J and K pressed together at 75 are both stopped. At 74 both print and the carriage moves one space. No lever kick when a tooth engages (at most 0.02 rad/s).
+- **Backspace from rest:** 12 columns (including 10, 66–68, 74 and 75), 2.6–16 N, tapped or held. It always moves the right amount and the key comes back up. The force needed runs from 3.2 N at column 11 to 2.6 N at 75, matching "about 3 N".
+- **Docs (item 6):** every number I measured matches.
+  - Keystroke timeline (§5): 47.4 / 52.4 / 54.8 / 91.6 / 110.4 ms, 4.14 m/s, 88.1 N, 47.6 / 22.7 / 22.2 mJ.
+  - At the margin: key top 2.66 mm, typebar 19.7°, tooth load 20.9 N with a 4 N push held.
+  - Link error after the solve: 4.44 µm on the key trains, 14.18 µm on the ribbon links.
+  - Lock constants: comb rest 2.012 mm, lever stop 0.619°.
+- **Gate:** `npm run check` passes, 39 of 39.
+
+**Not checked:** the view and interface, speed, timestep convergence, a guided (slow) backspace, and snapshot moments outside the four scenarios.
+
+Reviewed commit: 471713e (HEAD is now 2c71a62, AGENTS.md only). `git status --short`: empty.
+
+## Findings and disposition
+
+| ID | Finding | Disposition and reason | Repair or follow-up |
+|---|---|---|---|
+| F15 | The line lock can be beaten by a key or the space bar already on its way down as the carriage takes its last step; the escapement is then tripped against the margin stop and the next line starts one column in (report item 1) | Accepted as real, not repaired, recorded as a limit. It needs keys pressed directly: the typist layer waits for the lock before pressing anything, which the reviewer confirmed over 70 random trials. One repair was tried and backed out: stopping the carriage 0.4 of a space short of the last tooth, so that a dog let out and back in would find the same tooth. It failed in 4 of 34 timings, because the escape wheel is driven through a one-way ratchet and coasts on to the dog when the carriage stops; it also made every ordinary return land one column in until the return was changed to push further. A sound repair needs either an interlock on the escapement rocker over the whole last step or a carriage that can run on past the margin, each a new mechanism. | `docs/physics.md` §7 states the limit, its cause and why the short stop does not cure it; §3 points to it. Open for the owner to weigh. |
+| F16 | The comb is thrown back at 0.76 m/s when its stop against a lever is switched on already violated (item 2) | Accepted. | The stop catches the comb where it stands (its position is set when it is switched on), it is no longer in the group's list, and it is saved in snapshots. Commit `595d48b`. Test "a key held on a tooth drops into its slot as the comb leaves, without throwing the comb": 0.760 m/s before, under 0.2 m/s now. |
+| F17 | A backspace begun while the carriage is still stepping can be lost (item 3) | Accepted as real, not repaired, recorded as a limit: only a direct `keyDown` can do it (the typist layer waits for the carriage to settle), and the outcome is no movement instead of the 2 to 4 columns of the old code. | `docs/physics.md` §7. |
+| F18 | The feed group's rest rule was stricter than the friction that holds the platen, so the machine could fail to come to rest (item 4) | Accepted. | The platen may rest wherever friction holds it against the detent. Commit `595d48b`. Test "the platen may rest anywhere its friction holds it against the detent…". |
+| F19 | Pressing New sheet during a carriage return flings the platen (pre-existing, High) | Accepted. It can be reached from the interface. | New sheet renumbers the platen angle by whole lines together with the pawl's latch and any impact being tracked, and touches nothing else. Commit `595d48b`. Test "a new sheet can be fed at any moment…": 3,682 rad/s before, a normal line feed now. |
+| F20 | A key struck and held with a weak steady force lets the carriage step repeatedly (noted under item 1 as older behaviour; measured afterwards by the owner agent: up to 14 steps in 2 s at 2.6 N) | Accepted as real, not repaired, recorded as a limit: the type action has less friction than a real one, and only a held `keyDown` does this. Raising that friction would move every calibrated keystroke number. | `docs/physics.md` §7. |
+
+The reviewer's note that the per-key lock latch need not be saved is right; it is still saved, which costs nothing.
+
+## Verification
+
+On `595d48b`: `npm run check` (type check and 42 tests, all passing) and `npm run build`. The three new tests each fail on `471713e` (comb at 0.760 m/s; platen at 3,682 rad/s; rest rule). The reviewer's own scripts were not re-run; its scenarios for F16, F18 and F19 are the ones the new tests use. Browser checks for this round (the New sheet button pressed during a return, the smoke check and the tour walk) are recorded in the devlog entry of the commit that follows this one.
+
+## Round outcome
+
+The round 0 repairs hold: snapshots replayed exactly in 772 trials, backspace is right from rest over twelve columns and 2.6 to 16 N, the typist loses nothing at the margin, and every documented number was reproduced. Three defects are repaired with tests (F16, F18, F19, the last a serious older bug reachable from the New sheet button). Three are real and left as recorded limits because they need keys pressed directly, outside what the typist layer does (F15, F17, F20); F15 is the one worth the owner's attention, since a cure means a further interlock. The repairs in `595d48b` are small and were not sent to a third round.
