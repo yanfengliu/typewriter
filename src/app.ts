@@ -83,7 +83,7 @@ export class App {
     this.stage.render();
   }
 
-  resetHistory(): void { this.debt = 0; this.tw.events = []; for (const f of this.onReset) f(); }
+  resetHistory(): void { this.debt = 0; this.tw.events = []; this.paper.clear(); for (const f of this.onReset) f(); }
 
   start(): void { this.last = performance.now(); requestAnimationFrame(this.frame); }
 }

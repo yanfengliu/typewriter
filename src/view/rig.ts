@@ -22,7 +22,7 @@ export const SYS_COLOR: Record<Sys, number> = {
 const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(o);
 
 export const MAT = {
-  enamel: new THREE.MeshPhysicalMaterial({ color: 0x0d1013, roughness: 0.42, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.12 }),
+  enamel: new THREE.MeshPhysicalMaterial({ color: 0x090b0d, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.25 }),
   enamelTrim: new THREE.MeshPhysicalMaterial({ color: 0x15191d, roughness: 0.5, metalness: 0.1, clearcoat: 0.6, clearcoatRoughness: 0.2 }),
   iron: std({ color: 0x23262a, roughness: 0.62, metalness: 0.45 }),
   steel: std({ color: 0xb4b8be, roughness: 0.34, metalness: 1 }),

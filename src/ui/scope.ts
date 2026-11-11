@@ -4,7 +4,6 @@ import type { App } from '../app';
 import type { Train } from '../sim/typeaction';
 import { MARGIN, R_SEG } from '../sim/layout';
 import { TRAIN } from '../sim/typeaction';
-import { SPEC } from '../sim/mechanism';
 import { h } from './dom';
 
 const WINDOW = 0.2; // seconds of simulated time across the chart
@@ -34,6 +33,8 @@ export class Scope {
   private lastT = -1;
   private fingerBase = 0;
   private peak = 0;
+  /** Simulation time to mark on the chart (the replay position), or null. */
+  cursor: number | null = null;
 
   constructor(private app: App) {
     this.canvas = h('canvas', { width: 520, height: 150, 'aria-label': 'Chart of the last keystroke' });
@@ -60,7 +61,8 @@ export class Scope {
     const moving = tw.movingTrains;
     if (moving.length && moving[moving.length - 1] !== this.train) { this.train = moving[moving.length - 1]; this.fingerBase = tw.fingerWork - (tw.fingers[tw.fingers.length - 1]?.work ?? 0); this.peak = 0; }
     if (this.train) this.peak = Math.max(this.peak, 0.5 * TRAIN.barInertia * this.train.bar.v * this.train.bar.v);
-    if (tw.time === this.lastT) return;
+    // The chart only scrolls while something is moving, so the last stroke stays on screen.
+    if (tw.time === this.lastT || tw.idle) return;
     this.lastT = tw.time;
     this.t[this.head] = tw.time;
     for (let i = 0; i < SERIES.length; i++) this.v[i][this.head] = SERIES[i].get(this.app, this.train);
@@ -78,7 +80,7 @@ export class Scope {
     g.lineWidth = 1;
     for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(0, (H * i) / 4); g.lineTo(W, (H * i) / 4); g.stroke(); }
     for (let ms = 0; ms <= WINDOW * 1000; ms += 50) { const x = W - (ms / (WINDOW * 1000)) * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
-    const tEnd = tw.time;
+    const tEnd = this.count ? this.t[(this.head - 1 + CAP) % CAP] : tw.time;
     for (let s = 0; s < SERIES.length; s++) {
       const ser = SERIES[s], data = this.v[s];
       // The carriage trace is drawn relative to where it stood at the left edge of the window.
@@ -98,13 +100,17 @@ export class Scope {
       const last = this.count ? data[(this.head - 1 + CAP) % CAP] : 0;
       this.legend[s].textContent = last.toFixed(ser.digits);
     }
+    if (this.cursor !== null && tEnd - this.cursor >= 0 && tEnd - this.cursor <= WINDOW) {
+      const x = W - ((tEnd - this.cursor) / WINDOW) * W;
+      g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+    }
     g.fillStyle = 'rgba(255,255,255,0.45)';
     g.font = '10px system-ui, sans-serif';
     g.fillText(`${(WINDOW * 1000).toFixed(0)} ms of machine time →`, 6, 12);
     const mJ = (j: number) => `${(j * 1000).toFixed(j < 0.1 ? 1 : 0)} mJ`;
     this.energy[0].textContent = mJ(tw.fingerWork - this.fingerBase);
     this.energy[1].textContent = mJ(this.peak);
-    this.energy[2].textContent = `${mJ(tw.springEnergy)}  (${Math.round(tw.springEnergy / (SPEC.bandTension * 0.00254))} spaces)`;
+    this.energy[2].textContent = mJ(tw.springEnergy);
     this.energy[3].textContent = mJ(tw.handWork);
   }
 }

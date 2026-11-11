@@ -3,7 +3,7 @@
 // Nothing shown is an animation; rewinding a step simply runs the same physics again.
 
 import type { App } from '../app';
-import type { Snapshot } from '../sim/machine';
+import type { Mark, Snapshot } from '../sim/machine';
 import type { ShellMode } from '../view/modes';
 import type { Sys } from '../view/rig';
 import { clear, h } from './dom';
@@ -66,6 +66,8 @@ export class Tour {
   private pristine: Snapshot;
   private seenEvents = new Set<string>();
   private readoutEls: Array<[HTMLElement, (app: App) => string]> = [];
+  /** The user's own machine and page, put back when the tour ends. */
+  private own: { state: Snapshot; marks: Mark[] } | null = null;
 
   constructor(private app: App, private host: TourHost, readonly steps: TourStep[]) {
     this.pristine = app.tw.snapshot();
@@ -76,7 +78,19 @@ export class Tour {
   get step(): TourStep { return this.steps[this.index]; }
   get typingAllowed(): boolean { return !this.active || !!this.step.free; }
 
-  start(index = 0): void { this.active = true; this.panel.hidden = false; this.go(index); }
+  start(index = 0): void {
+    if (!this.active) {
+      // Let anything in flight finish, then set the user's machine and page aside.
+      const tw = this.app.tw;
+      this.app.typist.clear();
+      for (const f of tw.fingers) f.release();
+      for (let i = 0; i < 400 && !tw.idle; i++) tw.advance(0.005);
+      this.own = { state: tw.snapshot(), marks: tw.marks.slice() };
+    }
+    this.active = true;
+    this.panel.hidden = false;
+    this.go(index);
+  }
 
   stop(): void {
     this.token++;
@@ -86,6 +100,15 @@ export class Tour {
     this.app.stopWhen = null;
     this.host.setPaused(false);
     this.host.setSpeed(1);
+    // Hand the machine back whole, however deep in a close-up the tour was left.
+    this.app.typist.clear();
+    if (this.own) {
+      this.app.tw.restore(this.own.state);
+      this.app.tw.marks = this.own.marks;
+      this.own = null;
+      this.app.resetHistory();
+    }
+    this.host.applyView({ shot: 'typist', shell: 'glass' }, 1.0);
     this.host.onTourChange();
   }
 

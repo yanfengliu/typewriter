@@ -87,9 +87,10 @@ export class UI implements TourHost {
     app.stage.controls.addEventListener('start', () => this.cam.cancel());
     window.addEventListener('keydown', (e) => this.onKey(e));
     const cv = app.stage.canvas;
-    let down: { x: number; y: number; t: number } | null = null;
-    cv.addEventListener('pointerdown', (e) => { this.sound.unlock(); down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
-    cv.addEventListener('pointerup', (e) => { if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && performance.now() - down.t < 500) this.click(e); down = null; });
+    // A press that does not drag is a click on a part; a drag orbits the camera.
+    let down: { x: number; y: number } | null = null;
+    cv.addEventListener('pointerdown', (e) => { this.sound.unlock(); down = { x: e.clientX, y: e.clientY }; });
+    cv.addEventListener('pointerup', (e) => { if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5) this.click(e); down = null; });
     cv.addEventListener('pointermove', (e) => { if (e.buttons === 0) this.hover(e); });
     cv.addEventListener('pointerleave', () => this.setHover(null));
     app.onFrame.push((dt) => this.frame(dt));
@@ -309,7 +310,7 @@ export class UI implements TourHost {
         if (this.slow !== code) { this.app.tw.keyDown(code, { servo: true }); this.slow = code; }
         this.app.tw.servoDepth.set(code, v * 0.0155);
       }, (v) => `${Math.round(v * 100)}%`);
-      card.append(s.row, h('p', { class: 'hint' }, 'Drag to push this key down by hand. Go slowly and the type only kisses the paper: no momentum, no mark. The carriage waits until you let the key up.'),
+      card.append(s.row, h('p', { class: 'hint' }, 'Drag to push this key down by hand. Go slowly and the type only kisses the paper: without momentum it leaves a faint ghost at most. The carriage waits until you let the key up.'),
         h('button', { class: 'btn', onclick: () => { s.set(0); if (this.slow) { this.app.tw.keyUp(this.slow); this.slow = null; } } }, 'Let go'));
     }
     card.append(h('button', { class: 'btn', onclick: () => { const f = FOCUS.find(([, set]) => set?.includes(p.sys)); this.setFocus(f ? f[1] : null); if (this.modes.shell === 'solid') { this.modes.shell = 'glass'; this.shellSeg.set('glass'); } } }, 'Focus on its mechanism'));
@@ -341,6 +342,7 @@ export class UI implements TourHost {
     tw.events = [];
     this.replay.record();
     this.scope.sample();
+    this.scope.cursor = this.replay.active ? this.replay.timeAt(this.replay.cursor) : null;
     this.cam.update(dt);
     this.modes.update(dt);
 

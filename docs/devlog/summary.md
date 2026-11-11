@@ -1,0 +1,7 @@
+# Devlog
+
+Newest first. One dated line per change that alters behaviour.
+
+- 2026-11-11 — Guided tour, view modes and interface: 16-step tour that replays the real simulation for each step (side-elevation and slab cross-sections, frozen at the moment the step is about); glass/hidden body, focus, colour by job, exploded, slice, labels, instruments, replay scrubbing, slow motion to 1/500, press-slowly by hand, synthesised sound. Checked by walking every step and the controls in a headless GPU browser at 1920×1080 (175 fps idle, real-time ratio 1.00 while typing).
+- 2026-11-11 — 3D model built procedurally from the simulation's own geometry: every part posed from its body, links and springs drawn between live end points, ink stamped from recorded contacts.
+- 2026-11-11 — Physics core on the empty `fable_5_2` branch: one-degree-of-freedom bodies with position-projected constraints at 25 µs; type action for 44 keys, universal bar, ribbon lift, escapement with fixed and loose dog, mainspring carriage, shift, space, backspace, line feed, bell, margins; typist queue so no input is lost. 26 tests: solver against closed forms, causal order, rigid closure, energy split, part-removal counterfactuals, timestep convergence, exact replay, typing behaviour.

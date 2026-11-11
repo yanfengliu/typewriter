@@ -6,7 +6,7 @@ import {
   AUX_FULCRUM, BACKSPACE, ESC, F, KEY_FULCRUM, P0, RAILS, RIBBON, RIBBON_LEVER, ROW_Y, ROW_Z, SHIFT, SPACE_BAR, SUBLEVER, U, X,
 } from '../../sim/layout';
 import { Vec3, add, addScaled, scale } from '../../sim/vec';
-import { MAT, Rig } from '../rig';
+import { MAT, Part, Rig } from '../rig';
 import { arc, bar2D, box, circle, merge, plate, roundRect, slab, tube } from '../geo';
 import { UNIT_ROD, keytop } from './typeaction';
 import { spin } from './carriage';
@@ -70,7 +70,22 @@ export function buildFrame(rig: Rig, tw: Typewriter, legendMat: THREE.Material, 
   kb.add(slab([-0.1505, 0.031, 0.1688], [0.1505, 0.0688, 0.1708]), MAT.enamel);
   // Gold pinstripes and a maker's plate
   const trim = rig.part('trim', { kind: 'shell', sys: 'shell', explode: [0, 0.2, 0.02], anchor: [0, 0.135, 0.097] });
-  trim.add(merge([slab([-0.05, 0.1295, 0.0971], [0.05, 0.1405, 0.0974]), slab([-0.15, 0.012, 0.1971], [0.15, 0.0128, 0.1974]), slab([-0.15, 0.042, 0.1971], [0.15, 0.0428, 0.1974])]), MAT.brass, { shadow: false });
+  trim.add(merge([slab([-0.15, 0.012, 0.1971], [0.15, 0.0128, 0.1974]), slab([-0.15, 0.042, 0.1971], [0.15, 0.0428, 0.1974])]), MAT.brass, { shadow: false });
+  // Maker's plate: gold lettering on black, as on machines of the period.
+  const cv = document.createElement('canvas');
+  cv.width = 1024; cv.height = 128;
+  const g2 = cv.getContext('2d')!;
+  g2.fillStyle = '#0b0c0e'; g2.fillRect(0, 0, 1024, 128);
+  g2.strokeStyle = '#c9a24a'; g2.lineWidth = 3; g2.strokeRect(8, 8, 1008, 112);
+  g2.fillStyle = '#d8b25a'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+  g2.font = 'italic 600 64px Georgia, "Times New Roman", serif';
+  g2.fillText('Standard  Nº 5', 512, 68);
+  const plateTex = new THREE.CanvasTexture(cv);
+  plateTex.colorSpace = THREE.SRGBColorSpace;
+  plateTex.anisotropy = 8;
+  const plateGeo = new THREE.PlaneGeometry(0.11, 0.01375);
+  plateGeo.translate(0, 0.135, 0.09715);
+  trim.add(plateGeo, new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.35, metalness: 0.5 }), { shadow: false });
 
   // --- Shift frame: two side levers joined at the back by the rail that lifts the carriage cradle
   const yA = AUX_FULCRUM.y, zA = AUX_FULCRUM.z;
@@ -117,6 +132,7 @@ export function buildFrame(rig: Rig, tw: Typewriter, legendMat: THREE.Material, 
   // ribbon guide posts at the rear corners of the deck
   const guideX = 0.05, guideZ = -0.004, ribbonY = P0[1] + U[1] * (RIBBON.restTop - RIBBON.width / 2);
   cups.add(merge([-1, 1].map((s) => tube([s * guideX, 0.1455, guideZ], [s * guideX, ribbonY + 0.009, guideZ], 0.0012, 6))), MAT.nickel);
+  const spools: Part[] = [];
   for (const s of [-1, 1]) {
     const sp = rig.part(`spool${s < 0 ? 'L' : 'R'}`, { kind: 'spool', sys: 'ribbon', explode: [s * 0.03, 0.27, 0.02], anchor: [s * spoolX, spoolY + 0.014, spoolZ] });
     const o: Vec3 = [s * spoolX, spoolY, spoolZ];
@@ -124,6 +140,7 @@ export function buildFrame(rig: Rig, tw: Typewriter, legendMat: THREE.Material, 
     const flange = (y: number) => plate(circle(0, 0, 0.027, 36), 0.0008, { origin: [o[0], y, o[2]], a: [1, 0, 0], b: [0, 0, 1] }, [0, 1, 2].map((i) => circle(0.016 * Math.cos(i * 2.094), 0.016 * Math.sin(i * 2.094), 0.006, 14, true)));
     sp.add(merge([flange(spoolY + 0.001), flange(spoolY + 0.0145)]), MAT.nickel);
     sp.add(tube([o[0], spoolY + 0.0014, o[2]], [o[0], spoolY + 0.0141, o[2]], s < 0 ? 0.021 : 0.014, 32), MAT.ribbonBlack);
+    spools.push(sp);
   }
 
   const vib = rig.part('vibrator', { kind: 'vibrator', sys: 'ribbon', body: c.vibrator, explode: [0, 0.14, 0.05], anchor: addScaled(P0, U, -0.012) });
@@ -162,17 +179,16 @@ export function buildFrame(rig: Rig, tw: Typewriter, legendMat: THREE.Material, 
   };
   const Y: Vec3 = [0, 1, 0];
   rig.updaters.push(() => {
-    const e = rig.explode;
-    const lift = c.vibrator.q + e * 0.0;
+    const lift = c.vibrator.q;
     const centre = RIBBON.restTop - half + lift;
-    const dy = (vib.offset.y - ribbon.offset.y), dz = (vib.offset.z - ribbon.offset.z);
-    const v = (s: number): Vec3 => { const p = at(s * px, centre, 0.0008); return [p[0], p[1] + dy, p[2] + dz]; };
-    put(0, [-spoolX + 0.02, spoolY + 0.008, spoolZ - 0.006], Y);
-    put(1, [-guideX, ribbonY, guideZ], Y);
-    put(2, v(-1), U);
-    put(3, v(1), U);
-    put(4, [guideX, ribbonY, guideZ], Y);
-    put(5, [spoolX - 0.013, spoolY + 0.008, spoolZ - 0.006], Y);
+    // Each stretch of ribbon follows the part it runs over, so it stays threaded when the view is exploded.
+    const on = (part: Part, p: Vec3): Vec3 => [p[0] + part.offset.x - ribbon.offset.x, p[1] + part.offset.y - ribbon.offset.y, p[2] + part.offset.z - ribbon.offset.z];
+    put(0, on(spools[0], [-spoolX + 0.02, spoolY + 0.008, spoolZ - 0.006]), Y);
+    put(1, on(cups, [-guideX, ribbonY, guideZ]), Y);
+    put(2, on(vib, at(-px, centre, 0.0008)), U);
+    put(3, on(vib, at(px, centre, 0.0008)), U);
+    put(4, on(cups, [guideX, ribbonY, guideZ]), Y);
+    put(5, on(spools[1], [spoolX - 0.013, spoolY + 0.008, spoolZ - 0.006]), Y);
     (g.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     g.computeVertexNormals();
   });

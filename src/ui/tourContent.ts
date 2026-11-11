@@ -1,7 +1,7 @@
 // The guided tour: what to look at, what to notice, and which real simulation to run for each step.
 
 import type { App } from '../app';
-import { CHAR_PITCH, GLYPH_PITCH, MARGIN, R_SEG, TRAVEL } from '../sim/layout';
+import { CHAR_PITCH, GLYPH_PITCH, MARGIN, R_SEG } from '../sim/layout';
 import { SPEC } from '../sim/mechanism';
 import type { TourCtl, TourStep } from './tour';
 import type { Shot } from './camera';
@@ -41,7 +41,8 @@ const MOMENTS: Array<(c: TourCtl) => boolean> = [
   (c) => train(c.app).bar.q > 50 / DEG,
   (c) => c.app.tw.core.ubar.q > 0.0012,
   (c) => !c.app.tw.core.state.looseIn,
-  (c) => c.seen('impact') && train(c.app).bar.q < TRAVEL - 4 / DEG,
+  // the instant of greatest pressure: the type face is on the paper and the bar has just stopped
+  (c) => { const t = train(c.app); return (t.hit[0].active || t.hit[1].active) && t.bar.v <= 0; },
   (c) => c.seen('step'),
   (c) => c.app.tw.idle,
 ];
@@ -100,7 +101,7 @@ export const TOUR: TourStep[] = [
     chapter: 'One keystroke', title: '2 · Two links multiply the motion',
     body: `<p>The key link pulls the short arm of the <b>sub-lever</b> (a bell crank). Its long arm swings forward much further, and pulls the <b>draw link</b>.</p>
       <p>The draw link is hooked to the typebar's <b>heel</b>, only 10 mm from the pivot, so a small pull swings the long bar a long way. Each stage trades force for distance.</p>
-      <p>Compare the two speeds below: the type face is already moving about <b>nine times faster</b> than your fingertip.</p>`,
+      <p>Compare the two speeds below: the type face is already moving about <b>eight times faster</b> than your fingertip.</p>`,
     view: { shot: side(0.035, 0.09, 0.46), slice: CUT, shell: 'hidden', focus: ['keys', 'typeaction'], solo: KEY, highlight: [`sub:${KEY}`, `link2:${KEY}`, `bar:${KEY}`] },
     speed: 0.025, run: stroke(1, 2), readouts: [R.depth, R.bar, R.finger, R.speed, R.link],
   },
@@ -117,15 +118,15 @@ export const TOUR: TourStep[] = [
     body: `<p>Second, the universal bar's push rod rocks the <b>dog rocker</b> under the escape wheel.</p>
       <p>The wheel wants to turn: the carriage's spring is pulling on it. The <b>loose dog</b> has been holding one tooth. Now the rocker slides the <b>fixed dog</b> into the wheel and the loose dog out. For an instant both are in, so the wheel can never run away.</p>
       <p>The wheel has not turned. The carriage must stand still while the letter prints. But the freed loose dog <b>springs back a third of a tooth</b>, ready to drop in behind the next one.</p>`,
-    view: { shot: { pos: [-0.105, 0.128, -0.2], target: [0, 0.104, -0.094] }, shell: 'hidden', focus: ['escapement'], solo: KEY, highlight: ['looseDog'] },
+    view: { shot: { pos: [-0.078, 0.118, -0.172], target: [0, 0.107, -0.095] }, shell: 'hidden', focus: ['escapement'], solo: KEY, highlight: ['looseDog'] },
     speed: 0.006, run: stroke(3, 4), readouts: [R.ubar, R.dogs, R.column],
   },
   {
     chapter: 'One keystroke', title: '5 · Impact',
-    body: `<p>Slowed 400 times. The type slug passes through the guide and hits the ribbon, paper and rubber platen at about <b>4 metres per second</b>.</p>
-      <p>The contact lasts about a third of a millisecond and peaks near <b>90 newtons</b>, a hundred times what your finger pressed with. This is why the stroke must be a quick tap: the linkage does not <em>press</em> the type on the paper, it <em>throws</em> it. Momentum makes the mark.</p>
-      <p>The rubber then throws the bar back.</p>`,
-    view: { shot: side(-0.012, 0.164, 0.13), slice: 0.0125, sliceBack: -0.0125, shell: 'hidden', focus: ['typeaction', 'ribbon', 'feed', 'paper'], solo: KEY, highlight: [`bar:${KEY}`] },
+    body: `<p>Slowed 400 times, and frozen at the instant of greatest pressure. The type slug has passed through the guide and hit the ribbon, paper and rubber platen at about <b>4 metres per second</b>.</p>
+      <p>The contact lasts about a third of a millisecond and peaks near <b>90 newtons</b>, thirty times what your finger pressed with. This is why the stroke must be a quick tap: the linkage does not <em>press</em> the type on the paper, it <em>throws</em> it. Momentum makes the mark.</p>
+      <p>Next, the rubber throws the bar back.</p>`,
+    view: { shot: side(-0.016, 0.166, 0.1), slice: 0.0125, sliceBack: -0.0125, shell: 'hidden', focus: ['typeaction', 'ribbon', 'feed', 'paper'], solo: KEY, highlight: [`bar:${KEY}`] },
     speed: 0.0025, run: stroke(4, 5), readouts: [R.speed, R.force, R.ribbon, R.fingerWork],
   },
   {
@@ -163,9 +164,9 @@ export const TOUR: TourStep[] = [
     chapter: 'Shift', title: 'Capitals: move the paper, not the type',
     body: `<p>Every slug carries <b>two characters</b>, the capital above the small letter. To print the upper one, the machine does not change the typebar's swing at all. It <b>lifts the platen</b> 6.8 mm so the upper character is the one that meets the paper squarely.</p>
       <p>The Shift keys are joined by a frame that pivots in the middle: front down, back rail up, and the rail lifts the cradle that holds the platen. The cradle weighs a kilogram, which is why Shift is the heaviest key; springs carry most of it.</p>
-      <p>Shift goes down, then H is struck, then Shift is released.</p>`,
-    view: { shot: 'shift', shell: 'hidden', focus: ['shift', 'feed', 'paper', 'typeaction'], solo: KEY, highlight: ['shiftFrame', 'cradle'] },
-    speed: 0.12, run: async (c) => { type(c, 'H'); await c.playTo(() => quiet(c), 3); }, readouts: [R.shift, R.bar],
+      <p>Here Shift goes down, then H is struck. The picture stops as the capital prints, with the platen still raised.</p>`,
+    view: { shot: side(0.02, 0.105, 0.78), slice: 0.135, shell: 'hidden', focus: ['shift', 'feed', 'paper', 'typeaction', 'keys'], solo: KEY, highlight: ['shiftFrame'] },
+    speed: 0.1, run: async (c) => { type(c, 'H'); await c.playTo(() => c.seen('impact'), 3); }, readouts: [R.shift, R.bar, ['Printed', (a) => a.tw.marks.map((m) => m.ch).join('') || '—']],
   },
   {
     chapter: 'New line', title: 'One lever, two jobs',

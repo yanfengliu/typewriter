@@ -1,6 +1,10 @@
 # AGENTS.md — typewriter
 
-Interactive browser typewriter. See README.md for the application and development commands.
+## What this is
+
+A manual typewriter in the browser, driven by a physical simulation of its mechanism, built to teach how the machine works. Goal: type on it, and examine any part of a keystroke in see-through, exploded, sliced and slow-motion views, with a guided tour. Non-goals: copying a particular model; simulating paper or ribbon as bodies; typebar jams. Stack: TypeScript, Vite, three.js; the physics in `src/sim` has no browser dependency and runs under Node for tests.
+
+Read at session start: `docs/learning/lessons.md`, then the newest entries of `docs/devlog/summary.md`. The model is described in `docs/physics.md` (section map at its top).
 
 <!-- FLEET-CANON:BEGIN sha=7f2f32ea7a5c generated from ../fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
 ## Fleet constitution
@@ -45,3 +49,23 @@ The designated coordinator reads `../fleet/docs/skills/coordinator.md` before pl
 - Plain words; one line per paragraph, no hard wrapping. A report says what changed, how it was checked (including any check skipped or failed) and what is not done. [R25]
 - Node 24 is the baseline. Products pin the model IDs they call in their own repo, and nowhere else. Reviewer model pins live only in `../fleet/docs/skills/multi-cli-review.md`. Runtime model calls are allowed and paid for; make per-item calls one-shot, not agent sessions. [R28, R29]
 <!-- FLEET-CANON:END -->
+
+## Gates
+
+- `npm run check`: type-checks `src` and `tests`, then runs the physics tests (solver against closed forms; keystroke and typing behaviour).
+- `npm run build`: type-check plus production build; must succeed before a commit that touches `src`.
+- Visual or interactive changes: look at them in a foreground or headless browser at full resolution (see lessons: the in-app browser pane throttles when hidden). Tour steps can be walked and captured with the Playwright CLI; screenshots go under `output/playwright/`.
+
+## Invariants and boundaries
+
+- The model shows the simulation and nothing else: a part's transform comes from its body; links and springs are drawn between their end points' live positions. No hand animation, in typing or in the tour.
+- `src/sim` does not import three.js or touch the DOM.
+- Geometry constants live in `src/sim/layout.ts` and are shared by physics and model; a number that positions a part is not repeated in the view.
+- Nothing typed is dropped: input waits in the typist queue until the mechanism can take it.
+- Ink comes only from a recorded type-on-platen contact (position from the state at peak force, darkness from that force and ribbon cover).
+- A tour step replays the real simulation from the pristine snapshot; it must be repeatable from any other step.
+
+## Conventions
+
+- SI units throughout the simulation (metres, kilograms, seconds, newtons). Assembly coordinates: X right, Y up, Z toward the typist.
+- A behaviour claimed in `docs/physics.md` or the tour text has a test or a measured number behind it; update both together.

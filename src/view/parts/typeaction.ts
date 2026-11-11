@@ -43,6 +43,35 @@ export function legendAtlas(keys: KeyGeom[], extra: string[]): { texture: THREE.
   return { texture, cell: (i) => [(i % n) / n, 1 - (Math.floor(i / n) + 1) / n, 1 / n] };
 }
 
+/** Atlas of type faces: each cell holds a slug's two characters, mirrored as they are cut in the metal. */
+export function typeFaceAtlas(keys: KeyGeom[]): { texture: THREE.CanvasTexture; cell: (i: number) => [number, number, number, number] } {
+  const n = 8, w = 64, hgt = 256;
+  const cv = document.createElement('canvas');
+  cv.width = n * w; cv.height = Math.ceil(keys.length / n) * hgt;
+  const g = cv.getContext('2d')!;
+  g.fillStyle = '#2a3140';
+  g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#c9d2e0';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = 'bold 60px "Courier New",Courier,monospace';
+  keys.forEach((k, i) => {
+    const cx = (i % n) * w + w / 2, top = Math.floor(i / n) * hgt;
+    g.save();
+    g.translate(cx, 0);
+    g.scale(-1, 1);
+    // SLUG spans 13.6 mm for 256 px: the two characters sit 6.8 mm (128 px) apart, capital on top.
+    g.fillText(k.upper, 0, top + hgt / 2 - 64);
+    g.fillText(k.lower, 0, top + hgt / 2 + 64);
+    g.restore();
+  });
+  const texture = new THREE.CanvasTexture(cv);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  const rows = Math.ceil(keys.length / n);
+  return { texture, cell: (i) => [(i % n) / n, 1 - (Math.floor(i / n) + 1) / rows, 1 / n, 1 / rows] };
+}
+
 /** Round glass-and-nickel keytop with its legend. Returns geometries grouped by material. */
 export function keytop(top: Vec3, uvCell: [number, number, number], radius = 0.0068): { body: THREE.BufferGeometry; ring: THREE.BufferGeometry; face: THREE.BufferGeometry } {
   const body = new THREE.CylinderGeometry(radius, radius * 0.94, 0.004, 28);
@@ -61,6 +90,8 @@ export function keytop(top: Vec3, uvCell: [number, number, number], radius = 0.0
 const basis = (a: Vec3, b: Vec3, c: Vec3, o: Vec3) => new THREE.Matrix4().makeBasis(new THREE.Vector3(...a), new THREE.Vector3(...b), new THREE.Vector3(...c)).setPosition(...o);
 
 export function buildTypeAction(rig: Rig, tw: Typewriter, legendMat: THREE.Material, cell: (i: number) => [number, number, number]): void {
+  const faces = typeFaceAtlas(tw.keys);
+  const faceMat = new THREE.MeshStandardMaterial({ map: faces.texture, roughness: 0.35, metalness: 0.6 });
   const zy = (x: number) => ({ origin: [x, 0, 0] as Vec3, a: [0, 0, 1] as Vec3, b: [0, 1, 0] as Vec3 });
   const frameSpring = rig.part('springRail', { kind: 'springRail', sys: 'frame', explode: [0, -0.02, -0.07], anchor: [0, 0.07, -0.048] });
   frameSpring.add(tube([-0.112, 0.0695, -0.048], [0.112, 0.0695, -0.048], 0.0015), MAT.steelDark);
@@ -112,10 +143,17 @@ export function buildTypeAction(rig: Rig, tw: Typewriter, legendMat: THREE.Mater
       plate(bar2D([0, 0], heel2, 0.0022), 0.0011, fr),
       plate(circle(0, 0.0016, 0.0034, 14), 0.0011, fr, [circle(0, 0, 0.0009, 8, true)]),
     ]);
+    // The type face itself: the side of the slug that meets the paper, with its two mirrored characters.
+    const face = new THREE.PlaneGeometry(SLUG.width, GLYPH_PITCH + SLUG.below + SLUG.above);
+    const fc = faces.cell(i), fuv = face.attributes.uv as THREE.BufferAttribute;
+    for (let v = 0; v < fuv.count; v++) fuv.setXY(v, fc[0] + fuv.getX(v) * fc[2], fc[1] + fuv.getY(v) * fc[3]);
+    face.applyMatrix4(basis(scale(X, -1), U, scale(F, -1), addScaled(addScaled(P0, U, GLYPH_PITCH / 2), F, -0.00004)));
     barGeo.applyMatrix4(toRest);
     slug.applyMatrix4(toRest);
+    face.applyMatrix4(toRest);
     bar.add(barGeo, MAT.steel);
     bar.add(slug, MAT.blued);
+    bar.add(face, faceMat, { shadow: false });
 
     // --- Wire links and return spring: drawn between the live positions of the points they join
     const l1 = rig.part(`link1:${code}`, { kind: 'link1', sys: 'typeaction', explode: [0, -0.042, 0.07], anchor: k.subIn });

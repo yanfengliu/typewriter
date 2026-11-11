@@ -180,3 +180,21 @@ test('a snapshot restores the exact state: the future replays bit for bit', () =
   assert.deepEqual(tw.sys.bodies.map((b) => b.q), end1.q);
   assert.equal(JSON.stringify(tw.marks), end1.marks);
 });
+
+test('restoring from the middle of an impact leaves no stale contact behind', () => {
+  const tw = new Typewriter();
+  const rest = tw.snapshot();
+  const t = tw.byCode.get('KeyH')!;
+  tw.keyDown('KeyH');
+  let guard = 0;
+  while (!t.hit[0].active && guard++ < 8000) tw.step();
+  assert.ok(t.hit[0].active, 'paused with the type face on the paper');
+  tw.restore(rest);
+  assert.equal(tw.marks.length, 0);
+  // A fresh strike must run its whole course: the finger must not think the type has already landed.
+  tw.keyDown('KeyH');
+  tw.advance(0.3);
+  assert.equal(tw.marks.length, 1);
+  assert.ok(tw.marks[0].ink > 0.9);
+  assert.ok(Math.abs(tw.column - (MARGIN.left + 1)) < 1e-3);
+});

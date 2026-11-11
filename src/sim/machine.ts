@@ -376,6 +376,8 @@ export class Typewriter {
     this.awakeTrains = this.trains.filter((t) => t.awake);
     const b = this.sys.bodies;
     for (let i = 0; i < this.permanent; i++) { b[i].q = s.q[i]; b[i].v = s.v[i]; }
+    // Contact flags belong to the moment being left, not the one being restored.
+    for (const c of this.sys.constraints) { c.active = false; c.force = 0; c.lambda = 0; }
     Object.assign(this.core.state, s.core);
     this.core.shiftLock.enabled = s.core.shiftLocked && this.core.shift.q >= this.core.shiftLock.bound * 0.999;
     this.sys.time = s.time;
