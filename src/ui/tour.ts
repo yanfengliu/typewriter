@@ -81,17 +81,29 @@ export class Tour {
   get typingAllowed(): boolean { return !this.active || !!this.step.free; }
 
   start(index = 0): void {
-    if (!this.active) {
-      // Let anything in flight finish, then set the user's machine and page aside.
-      const tw = this.app.tw;
-      this.app.typist.clear();
-      for (const f of tw.fingers) f.release();
-      for (let i = 0; i < 400 && !tw.idle; i++) tw.advance(0.005);
-      this.own = { state: tw.snapshot(), marks: tw.marks.slice() };
-    }
     this.active = true;
     this.panel.hidden = false;
     this.go(index);
+  }
+
+  /** Before the tour takes the machine over: let anything in flight finish, then set the user's machine and page aside. */
+  private setAside(): void {
+    if (this.own) return;
+    const tw = this.app.tw;
+    this.app.typist.clear();
+    for (const f of tw.fingers) f.release();
+    for (let i = 0; i < 400 && !tw.idle; i++) tw.advance(0.005);
+    this.own = { state: tw.snapshot(), marks: tw.marks.slice() };
+  }
+
+  /** Give the user their own machine and page back (when the tour ends, or reaches a step where they type). */
+  private giveBack(): void {
+    this.app.typist.clear();
+    if (!this.own) return;
+    this.app.tw.restore(this.own.state);
+    this.app.tw.marks = this.own.marks;
+    this.own = null;
+    this.app.resetHistory();
   }
 
   stop(): void {
@@ -103,13 +115,7 @@ export class Tour {
     this.host.setPaused(false);
     this.host.setSpeed(1);
     // Hand the machine back whole, however deep in a close-up the tour was left.
-    this.app.typist.clear();
-    if (this.own) {
-      this.app.tw.restore(this.own.state);
-      this.app.tw.marks = this.own.marks;
-      this.own = null;
-      this.app.resetHistory();
-    }
+    this.giveBack();
     this.host.applyView({ shot: 'typist', shell: 'glass' }, 1.0);
     this.host.onTourChange();
   }
@@ -135,7 +141,8 @@ export class Tour {
     const step = this.step, app = this.app;
     app.stopWhen = null;
     this.host.setPaused(false);
-    if (step.run || !step.free) this.reset();
+    if (step.free) this.giveBack();
+    else { this.setAside(); this.reset(); }
     this.host.applyView(step.view, 1.2);
     this.render();
     this.host.onTourChange();
