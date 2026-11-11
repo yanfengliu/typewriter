@@ -1,6 +1,6 @@
 # Review record: physics and tests on `fable_5_2`
 
-This record follows the fleet's review format (`../fleet/docs/work-docs.md`) but is not filed under `docs/work/`. The allocator refuses this branch: `node scripts/work-docs.mjs check --repo ../typewriter` answers "Local reservation witness contradicts registry.json", because `fable_5_2` was started empty and does not carry the registry that `main` has. Nothing was created or changed to get past that. When the owner decides how this branch relates to `main`, this file can be moved into an allocated folder as `plan.md` plus `reviews/0_implementation.md` and `reviews/1_implementation.md`.
+This record follows the fleet's review format (`../fleet/docs/work-docs.md`) but is not filed under `docs/work/`. The allocator refuses this branch: `node scripts/work-docs.mjs check --repo ../typewriter` answers "Local reservation witness contradicts registry.json", because `fable_5_2` was started empty and does not carry the registry that `main` has. Nothing was created or changed to get past that. When the owner decides how this branch relates to `main`, this file can be moved into an allocated folder as `plan.md` plus `reviews/0_implementation.md`, `reviews/1_implementation.md` and `reviews/2_implementation.md`.
 
 Finding IDs are assigned once and kept across rounds.
 
@@ -218,4 +218,94 @@ A trip lock on the escapement itself: commit `44dc5ee` (simulation and tests), `
 
 On `c980360`: `npm run check` (type check and 45 tests, all passing) and `npm run build`. In a headless browser at 1920×1080: `scripts/smoke.sh` (text right, no console errors, 0.99 of real time at 212 frames a second on a lightly loaded machine); `scripts/walk-tour.sh` (all 18 steps finish, no console errors); the finger and tab looked at with the carriage at the margin, two columns before it, and with Shift held and the rocker fully swung; the finger's clearances computed over the rocker's whole swing (shift rail 1.6 mm with Shift down, bell cam 1.6 mm, rack 5.6 mm). One tour walk stalled at step 17 while the test suite and the build were running at the same time on the machine; it did not recur in two walks run alone, and its cause was not found.
 
-The trip lock is new mechanism code and has not had an independent review.
+The trip lock was new mechanism code that no reviewer had seen when this was written. It was reviewed afterwards: Review 2 below.
+
+# Review 2: implementation (the trip lock)
+
+## Target
+
+Repository `typewriter`, branch `fable_5_2`, commit `c980360`: the trip lock added in `44dc5ee` (`TRIP_LOCK` in `src/sim/layout.ts`; `tripLock`, `tripBlock` and `cTrip` in `src/sim/mechanism.ts`; `lockLogic`, the fingers' landing rules, the knock report, snapshots and `placeCarriage` in `src/sim/machine.ts`), its three tests, and its numbers in `docs/physics.md`. While the review ran the branch moved to `3656f6f`; the two commits in between change documentation only.
+
+## Reviewers and coverage
+
+One reviewer: a Claude subagent on the Opus model, started with a fresh context and no part in writing the code, working read-only (its mutation runs used a `git archive` copy outside the repository). Lens: any input timing at the end of a line that still shifts the next line, prints past the margin or trips the escapement past the trip point; the two switched stops; the lock acting where it should not; snapshots; whether the tests can fail; whether the documented numbers hold. Not covered, by its own account: the 3D view, interface and tour; the type check and build; its substep hunt below 24 N and for keys other than B; backspace with a guided finger; speed. No reviewer from a second model family took part.
+
+## Reports
+
+### Claude subagent on Opus (fresh context)
+
+Unchanged, except that the absolute path of its scratch folder is shortened to `<scratch>/review3/`. Its scripts were not kept; the repository tests named under "Findings and disposition" reproduce the findings.
+
+**Trip lock review of c980360**
+
+I reviewed commit c980360. HEAD has since moved to 3656f6f, but nothing in src/ or tests/ changed (`git diff c980360 HEAD -- src tests` is empty). Scripts and outputs are in `<scratch>/review3/` (a.ts to g.ts and the *.out files). I found no High findings.
+
+**Medium**
+
+1. **In one substep both stops can be off, and a hard blow then trips the escapement past cTrip.** If the key is held, the next line starts in column 11. The code is `src/sim/machine.ts:362-363`.
+   - Line 362 only lets the tab in if the rocker is at most 0.052 rad. Line 363 only lets the finger block while the carriage is short of cTrip.
+   - Suppose that in the one 25 µs substep where the carriage crosses cTrip, the rocker swings from ≤0.05 to >0.052. Then the next `lockLogic` turns on neither stop, and the tab stays out until the rocker comes back under 0.052.
+   - How far the rocker moves per substep as it passes 0.05 rad: 0.66 mrad at 3.2 N, 1.42 mrad at 14 N, 2.15 mrad at 30 N, 2.8 mrad at 50 N. So the hole needs a key struck with about 25 N or more.
+   - Reproduction, plain API: `placeCarriage(74); advance(0.05); keyDown('KeyA'); advance(2130*25e-6); keyDown('KeyB',{force:57,hold:true}); advance(0.05); keyUp('KeyB')`, then run to rest. This gives 3 trip events, `b@74.071` followed by fading b's at 74.38–74.92, and the dog holding tooth 76. After `returnCarriage()`, Z prints at column 11.007. The same happens at 60 N after 2141 substeps.
+   - If the key is let go, or held at 32–52 N, the escapement still trips at column 74.063–74.064 (cTrip is 74.059) and b prints at 74.07 over the a, but the next line is correct.
+   - The hunt in c.ts bisected the delay one substep at a time for each force from 24 to 60 N. It found the coincident substep at 34 forces; at 8 of them the rocker was 2.01–2.55 mrad past.
+   - Only a direct `keyDown` can reach this: the typist waits for the comb, and the UI's touch slider stops at 6 N. It still contradicts "nothing can trip the escapement at the end of the line", the test name "however hard it is struck" and §7's "in every timing tried".
+   - **Candidate fix** (tried by patching `lockLogic` in memory): put the tab in whenever the carriage is past cTrip, whatever the rocker angle. All 16 cases (8 forces, let go and held) then end normally, with the rocker at most 2.55 mrad past the stop and rebounding at −9 to −13 rad/s, about 0.1 of its incoming speed. The same change on the scratch copy keeps the three trip tests and five margin tests green.
+
+**Low**
+
+2. **The three tests cannot see finding 1.** Results of breaking the code on a `git archive` copy:
+
+   | Mutation | Red tests |
+   |---|---|
+   | Lock never on | all three (as the author claims) |
+   | Finger never blocks | only "rocker is still swung out" |
+   | `landed` rules removed | only "gets past the comb" |
+   | Tolerance set to 0 | none |
+   | Tab in whatever the rocker angle | none |
+   | Finger bound fixed at cTrip | none |
+
+3. **No snapshot test covers a trip-lock moment.** A `restore()` that skips all four trip items leaves the three snapshot tests green. In my harness, forgetting only `tripArmed` changes the event stream in 26 of 151 replays.
+4. **Some documented numbers are narrower than measured once strokes are harder.**
+   - §7 says the letter is lost if the space bar follows it within 4 ms. Measured, the window is 0–4.5 ms at 2.2 N, 0–13.5 ms at 8 N and 0–16 ms at 14 N.
+   - §7 says a second letter overprints if struck within 14 ms. A 14 N B struck 41.8 ms after A still printed at 74.059.
+   - §5 says the key goes down 92% of its travel; I measured 92.7–93.0%.
+5. **Outside scope, noticed only:** at 55 N and above, a key also prints its capital glyph mid-line (at column 40, B with ink 0.96 next to b).
+
+**Checked and correct**
+- **Timing sweep:** 9 input sets × 53 delays from 0 to 120 ms (Space at 2.2 and 8 N; B at 3.2, 9 and 14 N; capitals with Shift held; B and Space held 0.4 s; B held 1 s at 2.6 N). All 477 ended at rest at 75 on tooth 75 with the tab in, nothing printed at 74.5 or beyond, and no trip past cTrip. In the 126 runs where I also returned the carriage, Z printed at 10.007.
+- **Substep scans** across each boundary between "carriage waits" and "rocker locked": the stop was switched on already past its angle 9 times, by 0.13–0.56 mrad. All 9 ended normally.
+- **Scenarios run** (all ended normally, and both typed pages match their text):
+  - holds at column 74 (2.4–9 N);
+  - weak holds starting at columns 70–73 that stop at 75;
+  - backspace at the margin, then typing;
+  - J held on the comb, then backspace (round 1's j at 75 and dog 76 are gone);
+  - backspace 56–104 ms into the last step;
+  - 20 guided space-bar and J runs, slow and oscillating;
+  - an auto-return page of 225 random characters, and a page with manual returns, overfull lines and backspaces.
+- **Carriage held at the finger:** the escape wheel coasts at most 0.48 mm ahead of it; it would take 3.57 mm to fool the loose dog. The carriage creeps 0.0693 mm onto the fixed dog with the key held.
+- **Snapshots:** 789 snapshots, taken with the tab in, the finger in the way, the carriage on the finger, and a typebar pressing the locked universal bar. About 1.35M replayed substeps were compared on full state plus events; none diverged.
+- **Numbers:** the typebar stops at 88.59–88.89°, 11.1–11.4° short of the paper; the universal bar is 2.24–2.30 mm in; the rocker is at 0.0500 rad, for 3.2–14 N. With the space bar pressing, the rocker sits up to 1.3 mrad past the stop because the space-bar contact is solved after the trip lock; this is harmless.
+- **Full suite**, run once: 45 of 45 pass.
+
+**Not checked:** the 3D view, UI and tour; tsc and build; the bisection hunt below 24 N and for keys other than B; backspace with a guided finger; speed.
+
+`git status --short`: empty.
+
+## Findings and disposition
+
+| ID | Finding | Disposition and reason | Repair or follow-up |
+|---|---|---|---|
+| F22 | In the substep in which the carriage passes the trip point, a blow of 25 N or more can carry the rocker more than 2 mrad past its stop; neither stop then comes on, the escapement trips past the trip point, and with the key held the next line starts in column 11 (report item 1) | Accepted. Retested before repairing: 57 N pressed 2130 substeps after the last letter gave 3 trips, the dog on tooth 76 and the next letter at column 11.007. Only a direct `keyDown` reaches it (the interface's touch stops at 6 N), but it contradicts what the lock is for. | The tab is in whenever the carriage is past the trip point, wherever the rocker stands, as the reviewer proposed; the pair is now decided by one position, so exactly one stop can act. Commit `7ebf546`. The same press now ends with one trip, the dog on tooth 75 and the next letter at 10.007; in the tie the rocker is 2.1 mrad (57 N) and 2.5 mrad (60 N) past its stop for one substep. |
+| F23 | The three trip-lock tests cannot see F22: none goes red with the tolerance set to 0 (item 2) | Accepted. The first test's check ran only while the tab was in, so it was skipped in exactly the case that matters. | New test "a hard blow that reaches the rocker in the very substep the tab arrives is caught all the same": six blows from 36 to 60 N, each timed to the substep and to the four either side; it fails on `c980360` ("57 N pressed 155 substeps on: with the carriage past the trip point the tab is in"). The first test's check is now conditioned on the carriage being past the trip point. Commit `7ebf546`. |
+| F24 | No snapshot test covers a trip-lock moment (item 3) | Accepted. | Two moments added to "snapshots are complete at awkward moments…": a key pressing the universal bar against the locked rocker, and the substep in which the carriage meets the rocker's finger. With one saved item left out of the restore at a time, on a scratch copy: forgetting whether the knock has been reported fails the test ("one knock, reported once"); forgetting either switch or the place the carriage was stopped does not, because `lockLogic` works those three out again from positions before the next solve. They are still saved, which costs nothing. Commit `7ebf546`. |
+| F25 | Three documented numbers are narrower than measured once strokes are harder (item 4) | Accepted. The windows depend on which typebar reaches the universal bar first, so they grow with the force of the second stroke; the first measurements used one force. | Measured again on `7ebf546` (360 timed pairs, all ending at rest on tooth 75 with the tab in and nothing printed past the last column) and `docs/physics.md` §5 and §7 corrected: the key goes down 93% of its travel (92.5% while held); a second letter prints over the last one if struck within 15 ms at 3.2 N, 34 ms at 8 N, or 8 to 41 ms after it at 14 N; the last letter is lost to a space bar pressed within 4.5 ms at 2.2 N, 13.5 ms at 8 N, 16 ms at 14 N, or to a second letter struck with 14 N within 7 ms. |
+| F26 | From about 55 N a key prints its capital as well, in the middle of a line (item 5, outside the review's scope) | Accepted as real, not repaired, recorded as a limit. Measured: the platen is a linear spring and damper and nothing else stops the typebar, so at 50 N on the key the type sinks 1.4 mm into it and the other character on the slug reaches the paper (not yet at 48 N). That is eight times the hardest touch the interface offers; a stiffening platen would move every calibrated impact number. | `docs/physics.md` §7 states the range the model is checked for and what happens beyond it. |
+
+## Verification
+
+On `7ebf546` (the code) together with the documentation of the commit that adds this section: `npm run check` (type check and 46 tests, all passing) and `npm run build`. The new test fails on the rule of `c980360` ("57 N pressed 155 substeps on: with the carriage past the trip point the tab is in") and passes now. The reviewer's reproduction was run before and after the repair: before, 3 trips, the dog on tooth 76 and the next letter at column 11.007 (57 N held; the same at 60 N); after, 1 trip, tooth 75 and column 10.007. The snapshot test was run on a scratch copy with one saved trip-lock item left out of the restore at a time (results under F24). The corrected numbers come from 360 timed pairs and 14 single strokes on `7ebf546`. A Node benchmark of a typing burst reads 12.5 µs per solved substep, no slower than before the repair. In a headless browser at 1920×1080: `scripts/smoke.sh` twice (text right and no console errors both times; 0.82 of real time at 74 frames a second right after the build had finished, 0.99 at 230 frames a second a few minutes later); `scripts/walk-tour.sh` (all 18 steps finish, no console errors), and the picture of the trip-lock step looked at: typebar K at 88° of 100°, the rocker at 50 of the 79 mrad it takes to trip, one letter printed. The reviewer's own scripts were not re-run.
+
+## Round outcome
+
+The trip lock held for everything the interface can do and for strokes up to 14 N in the reviewer's 477 timings; snapshots replayed exactly in 789 trials, and its documented geometry was reproduced. Its one hole needed a blow of 25 N or more arriving within one substep of the tab; it is closed, with a test that fails without the repair (F22, F23). The snapshot test now covers the lock (F24), the documented timing windows are restated by force (F25), and a limit of the platen model at about 50 N is recorded (F26).
