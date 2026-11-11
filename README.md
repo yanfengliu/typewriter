@@ -18,7 +18,7 @@ Open the address it prints (http://127.0.0.1:5173). `npm run build` type-checks 
 ## Using it
 
 - **Type.** Letters, digits and punctuation print; `Shift` gives the upper character; `Space`, `Backspace` and `Enter` (carriage return) work as on the machine. Clicking a key, the space bar or the return lever in the 3D view does the same.
-- **Guided tour** (top left) walks through the machine in 17 steps. Each step runs the real simulation in slow motion and stops at the moment it is about. `Again` replays a step; `Esc` leaves the tour and gives you your page back.
+- **Guided tour** (top left) walks through the machine in 18 steps. Each step runs the real simulation in slow motion and stops at the moment it is about. `Again` replays a step; `Esc` leaves the tour and gives you your page back.
 - **Look inside** (right): body solid, glass or off; focus on one mechanism (the rest turns to a faint ghost); exploded view; slice; colour parts by the job they do; labels; instruments (a chart of the last keystroke and an energy ledger); forces (arrows for the finger's push, the pull in each link, the blow on the paper, the spring and the load on the escapement dog, as the solver computes them); camera views.
 - **Time** (bottom): pause, step one millisecond, slow motion. While paused, the replay bar scrubs back through the last six seconds of motion in whatever view you choose.
 - **Click any part** to read what it is and how it works. On a key lever, `Press slowly` lets you push the key by hand.

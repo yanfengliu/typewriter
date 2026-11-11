@@ -1,7 +1,7 @@
 // The guided tour: what to look at, what to notice, and which real simulation to run for each step.
 
 import type { App } from '../app';
-import { CHAR_PITCH, GLYPH_PITCH, MARGIN, R_SEG } from '../sim/layout';
+import { CHAR_PITCH, ESC, GLYPH_PITCH, MARGIN, R_SEG } from '../sim/layout';
 import { SPEC } from '../sim/mechanism';
 import type { StepView, TourCtl, TourStep } from './tour';
 import type { Shot } from './camera';
@@ -63,6 +63,7 @@ const quiet = (c: TourCtl) => c.app.typist.pending === 0 && c.app.tw.idle;
 
 // The line lock is shown from three places: under the carriage, where its lug meets the comb's post; from behind
 // and above, looking down between the key levers at the comb; and from the typist's side, at the key being tried.
+const TRIP_VIEW: StepView = { shot: 'tripLock', shell: 'hidden', focus: ['escapement', 'carriage'], highlight: ['rocker'] };
 const LOCK_VIEW: StepView = { shot: 'lockPost', shell: 'hidden', focus: ['bell', 'keys', 'carriage'], highlight: ['lockComb'] };
 
 export const TOUR: TourStep[] = [
@@ -228,6 +229,36 @@ export const TOUR: TourStep[] = [
       ['Spaces left on the line', (a) => `${(MARGIN.right - a.tw.column).toFixed(0)}`],
       ['Lock comb pushed', (a) => `${(a.tw.core.lockBar.q * 1000).toFixed(1)} mm`],
       ['Keys', (a) => (a.tw.lineLockIn ? 'locked' : 'free')],
+    ],
+  },
+  {
+    chapter: 'New line', title: 'A second guard, on the escapement',
+    body: `<p>The comb can only slide under a lever that is <em>up</em>. A key already on its way down when the carriage arrives stays in its slot and holds the comb off.</p>
+      <p>If that key went on to strike, it would trip the escapement with the carriage against the margin stop. The wheel could not turn, the dog would come back a tooth ahead, and your next line would start one space in. So the escapement has a guard of its own, the <b>trip lock</b>. As the carriage leaves the last column, a <b>tab</b> under it moves in behind a <b>finger</b> on the dog rocker's shaft, and the rocker can no longer swing far enough to trip.</p>
+      <p>Here K is being held part of the way down while the last letter of the line is typed: watch the dark tab arrive behind the top of the orange finger. Then, from the side, K is pushed home. Its typebar comes up, meets the universal bar, and stops short of the paper.</p>`,
+    view: TRIP_VIEW,
+    speed: 0.1,
+    run: async (c) => {
+      const tw = c.app.tw, k = tw.byCode.get('KeyK')!;
+      tw.placeCarriage(MARGIN.right - 1);
+      c.skipTo(() => tw.idle, 0.3);
+      // Unseen: a guided finger lowers K gently until it rests half-way down in its slot.
+      tw.keyDown('KeyK', { servo: true });
+      let n = 0;
+      c.skipTo(() => { tw.servoDepth.set('KeyK', Math.min(0.007, ++n * 1e-6)); return n > 8500; }, 1);
+      type(c, 'l');
+      await c.playTo(() => tw.tripLockIn && c.app.typist.pending === 0 && tw.movingTrains.length === 1 && Math.abs(tw.core.carriage.v) < 1e-3, 3);
+      await c.wait(1.4);
+      c.view({ shot: side(-0.04, 0.128, 0.4), slice: 0.046, shell: 'hidden', focus: ['keys', 'typeaction', 'escapement', 'carriage', 'feed', 'paper'], solo: 'KeyK', highlight: ['bar:KeyK', 'ubar', 'rocker'] }, 1.6);
+      await c.wait(2.2);
+      tw.servoDepth.set('KeyK', 0.0155);
+      // Stop once the typebar has come to rest against the universal bar, with the rocker on the tab.
+      await c.playTo(() => c.seen('locked') && tw.core.tripLock.active && Math.abs(tw.core.rocker.v) < 0.05 && Math.abs(k.bar.v) < 0.2, 1.2);
+    },
+    readouts: [
+      ['Typebar K swung', (a) => `${((a.tw.byCode.get('KeyK')!.bar.q * 180) / Math.PI).toFixed(0)}° of 100°`],
+      ['Dog rocker swung', (a) => `${(a.tw.core.rocker.q * 1000).toFixed(0)} of the ${((ESC.fixedIn / ESC.dogR) * 1000).toFixed(0)} mrad it takes to trip`],
+      ['Letters printed', (a) => a.tw.marks.map((m) => m.ch).join('') || '—'],
     ],
   },
   {

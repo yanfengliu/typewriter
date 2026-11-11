@@ -29,6 +29,7 @@ export const SHOTS: Record<string, Shot> = {
   lockPost: { pos: [0.115, 0.09, -0.2], target: [0.068, 0.12, -0.063] },
   lockTeeth: { pos: [0.062, 0.11, -0.16], target: [0.06, 0.03, -0.063] },
   lockKey: { pos: [0.2, 0.2, 0.34], target: [0.05, 0.085, 0.1] },
+  tripLock: { pos: [0.08, 0.128, -0.15], target: [0.022, 0.116, -0.09] },
   exploded: { pos: [-0.82, 0.62, 1.0], target: [0, 0.17, 0.0] },
   under: { pos: [0.45, 0.02, 0.4], target: [0, 0.06, 0.03] },
 };

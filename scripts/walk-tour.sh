@@ -11,7 +11,7 @@ set -euo pipefail
 URL="${URL:-http://localhost:5179/}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$REPO/output/playwright/tour"
-FROM="${1:-0}"; TO="${2:-16}"
+FROM="${1:-0}"; TO="${2:-17}"
 mkdir -p "$OUT"
 "$PWCLI" open "$URL" >/dev/null 2>&1 || true
 "$PWCLI" resize 1920 1080 >/dev/null 2>&1
