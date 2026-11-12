@@ -67,6 +67,8 @@ export class Tour {
   active = false;
   index = 0;
   running = false;
+  /** True when the current step's action ran out of time before reaching the moment it was waiting for. */
+  timedOut = false;
   readonly panel: HTMLElement;
   private token = 0;
   private pristine: Snapshot;
@@ -144,6 +146,7 @@ export class Tour {
     this.index = Math.max(0, Math.min(this.steps.length - 1, i));
     const step = this.step, app = this.app;
     app.stopWhen = null;
+    this.timedOut = false;
     this.host.setPaused(false);
     if (step.free) this.giveBack();
     else { this.setAside(); this.reset(); }
@@ -158,7 +161,9 @@ export class Tour {
       app,
       skipTo: (cond, max = 1) => {
         const t0 = app.tw.time;
-        while (!cond() && app.tw.time - t0 < max) { app.tw.advance(0.0001); for (const e of app.tw.events) this.seenEvents.add(e.type); app.tw.events = []; }
+        let reached = cond();
+        while (!reached && app.tw.time - t0 < max) { app.tw.advance(0.0001); for (const e of app.tw.events) this.seenEvents.add(e.type); app.tw.events = []; reached = cond(); }
+        if (!reached) this.timedOut = true;
         app.resetHistory();
       },
       playTo: (cond, max = 1.5) => new Promise<void>((resolve) => {
@@ -166,7 +171,9 @@ export class Tour {
         this.host.setPaused(false);
         app.stopWhen = () => {
           if (!alive()) return true;
-          if (!cond() && app.tw.time - t0 < max) return false;
+          const reached = cond();
+          if (!reached && app.tw.time - t0 < max) return false;
+          if (!reached) this.timedOut = true;
           app.stopWhen = null;
           this.host.setPaused(true);
           resolve();
