@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "allocations": [
+    {
+      "id": 0,
+      "theme": "mechanical-typewriter"
+    },
+    {
+      "id": 1,
+      "theme": "buffered-typing"
+    },
+    {
+      "id": 2,
+      "theme": "github-pages"
+    },
+    {
+      "id": 3,
+      "theme": "mechanism-tutorial"
+    },
+    {
+      "id": 4,
+      "theme": "causal-tutorial"
+    },
+    {
+      "id": 5,
+      "theme": "connected-mechanism"
+    }
+  ]
+}

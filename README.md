@@ -15,6 +15,8 @@ npm run dev
 
 Open the address it prints (http://127.0.0.1:5173). `npm run build` type-checks and writes the site to `dist/`; `npm test` runs the physics tests.
 
+The site is published at <https://yanfengliu.github.io/typewriter/> by the [Pages workflow](.github/workflows/pages.yml) whenever a code change reaches `main` (documentation-only commits are skipped). `npm run build:pages` makes the same build, with asset paths under `/typewriter/`.
+
 ## Using it
 
 - **Type.** Letters, digits and punctuation print; `Shift` gives the upper character; `Space`, `Backspace` and `Enter` (carriage return) work as on the machine. Clicking a key, the space bar or the return lever in the 3D view does the same.
